@@ -1,230 +1,387 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid LFM 2.5 Chat</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { height: 100%; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #fafafa;
-            color: #333;
-            overflow: hidden;
-        }
-        .container { display: flex; flex-direction: column; height: 100vh; background: white; }
-        .header {
-            padding: 14px 16px;
-            border-bottom: 1px solid #e8e8e8;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        .header-title { font-weight: 500; font-size: 15px; }
-        .header-info { font-size: 12px; opacity: 0.9; margin-top: 2px; }
-        .dot {
-            width: 8px; height: 8px; border-radius: 50%;
-            display: inline-block; margin-right: 4px;
-        }
-        .dot.loading { background: #ff9800; animation: blink 1s infinite; }
-        .dot.ready { background: #4caf50; }
-        .dot.error { background: #f44336; }
-        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
-        .chat-container {
-            flex: 1; overflow-y: auto; padding: 16px;
-            display: flex; flex-direction: column; gap: 8px;
-        }
-        .chat-container::-webkit-scrollbar { width: 6px; }
-        .chat-container::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
-        .msg-group { display: flex; }
-        .msg-group.user { justify-content: flex-end; }
-        .msg-bubble {
-            max-width: 72%; padding: 10px 13px; border-radius: 12px;
-            font-size: 14px; line-height: 1.5; word-wrap: break-word;
-        }
-        .msg-group.user .msg-bubble { background: #667eea; color: white; }
-        .msg-group.bot .msg-bubble { background: #f0f0f0; color: #333; }
-        .msg-bubble.thinking { font-style: italic; color: #888; background: #f5f5f5; }
-        .input-section {
-            padding: 12px 16px; border-top: 1px solid #e8e8e8;
-            background: white; display: flex; gap: 8px;
-        }
-        input[type="text"] {
-            flex: 1; padding: 10px 12px; border: 1px solid #ddd;
-            border-radius: 8px; font-size: 14px; font-family: inherit;
-        }
-        input[type="text"]:focus { outline: none; border-color: #667eea; }
-        input[type="text"]:disabled { background: #f5f5f5; color: #999; }
-        button {
-            padding: 10px 16px; background: #667eea; color: white;
-            border: none; border-radius: 8px; cursor: pointer;
-            font-size: 13px; font-weight: 500;
-        }
-        button:hover:not(:disabled) { background: #5568d3; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        .error-banner {
-            background: #ffebee; border-left: 3px solid #f44336;
-            padding: 10px 12px; font-size: 12px; color: #c62828; border-radius: 4px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liquid LFM 2.5 350M チャット (WebGPU)</title>
+<style>
+  :root{
+    --bg:#0e0f12; --panel:#15171c; --panel2:#1b1e25; --border:#2a2e38;
+    --text:#e8e9ec; --sub:#9aa1ad; --accent:#6ee7c7; --accent2:#5b8def;
+    --user-bubble:#2563eb; --bot-bubble:#1f2330; --danger:#ef5466;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+  #app{display:flex;flex-direction:column;height:100vh;}
+
+  header{
+    padding:14px 20px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background:linear-gradient(180deg,var(--panel),var(--bg));
+  }
+  header .title{display:flex; align-items:center; gap:10px;}
+  header .title .dot{width:10px;height:10px;border-radius:50%;background:var(--sub);box-shadow:0 0 0 0 rgba(0,0,0,0);}
+  header .title .dot.ready{background:var(--accent); box-shadow:0 0 8px var(--accent);}
+  header .title .dot.loading{background:#f5a623; animation:pulse 1.2s infinite;}
+  header .title .dot.error{background:var(--danger);}
+  @keyframes pulse{0%{opacity:1;}50%{opacity:.3;}100%{opacity:1;}}
+  header h1{font-size:15px; font-weight:600; margin:0;}
+  header .sub{font-size:12px; color:var(--sub);}
+  header .right{display:flex; gap:8px; align-items:center;}
+  header select, header button{
+    background:var(--panel2); color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:6px 10px; font-size:12px; cursor:pointer;
+  }
+  header button:hover, header select:hover{border-color:var(--accent2);}
+
+  #status-bar{
+    padding:8px 20px; font-size:12px; color:var(--sub);
+    border-bottom:1px solid var(--border); background:var(--panel);
+    display:flex; align-items:center; gap:10px;
+  }
+  #progress-wrap{flex:1; height:6px; background:var(--panel2); border-radius:4px; overflow:hidden; display:none;}
+  #progress-bar{height:100%; width:0%; background:linear-gradient(90deg,var(--accent2),var(--accent)); transition:width .2s;}
+
+  #chat{flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:14px;}
+  .msg{max-width:760px; width:100%; margin:0 auto; display:flex; gap:10px;}
+  .msg .avatar{
+    flex:0 0 32px; width:32px; height:32px; border-radius:8px;
+    display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700;
+  }
+  .msg.user .avatar{background:var(--user-bubble); color:#fff;}
+  .msg.bot .avatar{background:linear-gradient(135deg,var(--accent2),var(--accent)); color:#0b0c0f;}
+  .msg .bubble{
+    flex:1; padding:10px 14px; border-radius:12px; line-height:1.65; font-size:14.5px;
+    white-space:pre-wrap; word-break:break-word;
+  }
+  .msg.user .bubble{background:var(--user-bubble); color:#fff; border-top-right-radius:4px;}
+  .msg.bot .bubble{background:var(--bot-bubble); border:1px solid var(--border); border-top-left-radius:4px;}
+  .msg .bubble.empty::after{content:"▍"; animation:blink 1s infinite;}
+  @keyframes blink{0%,50%{opacity:1;}51%,100%{opacity:0;}}
+  .msg .meta{font-size:11px; color:var(--sub); margin-top:6px;}
+
+  #welcome{max-width:760px; margin:40px auto; text-align:center; color:var(--sub); padding:0 20px;}
+  #welcome h2{color:var(--text); font-size:20px; margin-bottom:8px;}
+  #welcome .badge{
+    display:inline-block; margin-top:14px; padding:6px 12px; border:1px solid var(--border);
+    border-radius:20px; font-size:12px; background:var(--panel2);
+  }
+
+  #composer{
+    border-top:1px solid var(--border); padding:14px 20px 18px; background:var(--panel);
+  }
+  #composer-inner{max-width:760px; margin:0 auto; display:flex; gap:10px; align-items:flex-end;}
+  #composer textarea{
+    flex:1; resize:none; min-height:46px; max-height:160px; padding:12px 14px;
+    background:var(--panel2); border:1px solid var(--border); border-radius:12px;
+    color:var(--text); font-size:14.5px; font-family:inherit; line-height:1.5;
+  }
+  #composer textarea:focus{outline:none; border-color:var(--accent2);}
+  #composer button{
+    flex:0 0 auto; height:46px; padding:0 18px; border-radius:12px; border:none;
+    background:var(--accent2); color:#fff; font-weight:600; font-size:14px; cursor:pointer;
+  }
+  #composer button:disabled{background:var(--panel2); color:var(--sub); cursor:not-allowed;}
+  #composer .hint{max-width:760px; margin:8px auto 0; font-size:11.5px; color:var(--sub); display:flex; justify-content:space-between;}
+
+  #stop-btn{display:none; background:var(--danger);}
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border); border-radius:4px;}
+</style>
 </head>
 <body>
-<div class="container">
-    <div class="header">
-        <div class="header-title">Liquid LFM 2.5 230M Chat</div>
-        <div class="header-info">
-            <span class="dot loading" id="dot"></span>
-            <span id="statusText">初期化中...</span>
-        </div>
+<div id="app">
+
+  <header>
+    <div class="title">
+      <span class="dot" id="status-dot"></span>
+      <div>
+        <h1>Liquid LFM 2.5 350M チャット</h1>
+        <div class="sub">WebGPU ローカル推論 ・ Transformers.js</div>
+      </div>
     </div>
-    <div class="chat-container" id="chatContainer"></div>
-    <div class="input-section">
-        <input type="text" id="userInput" placeholder="メッセージを入力..." disabled>
-        <button id="sendBtn" disabled>送信</button>
+    <div class="right">
+      <select id="dtype-select" title="量子化（精度/速度）">
+        <option value="q4" selected>q4（軽量・高速）</option>
+        <option value="fp16">fp16（高精度）</option>
+        <option value="q8">q8（中間）</option>
+      </select>
+      <button id="reset-btn">会話をリセット</button>
     </div>
+  </header>
+
+  <div id="status-bar">
+    <span id="status-text">モデル未読み込み。「読み込み開始」を押すか、最初のメッセージ送信時に自動で読み込みます。</span>
+    <div id="progress-wrap"><div id="progress-bar"></div></div>
+    <button id="load-btn" style="margin-left:auto; background:var(--accent2); color:#fff; border:none;">読み込み開始</button>
+  </div>
+
+  <div id="chat">
+    <div id="welcome">
+      <h2>こんにちは 👋</h2>
+      <p>このチャットは <b>onnx-community/Liquid-LFM-2.5-350M-ONNX</b> モデルをあなたのブラウザの WebGPU 上で直接実行します。パブリックに一般公開されているONNX形式のモデルを使用しているため、アクセス拒否エラーを起こさず完全にローカル動作します。</p>
+      <div class="badge">device: webgpu ・ dtype: 選択可 ・ 完全ローカル実行</div>
+    </div>
+  </div>
+
+  <div id="composer">
+    <div id="composer-inner">
+      <textarea id="input" placeholder="メッセージを入力（Shift+Enterで改行、Enterで送信）" rows="1"></textarea>
+      <button id="send-btn">送信</button>
+      <button id="stop-btn">停止</button>
+    </div>
+    <div class="hint">
+      <span id="model-info">モデル: onnx-community/Liquid-LFM-2.5-350M-ONNX</span>
+      <span id="perf-info"></span>
+    </div>
+  </div>
+
 </div>
 
 <script type="module">
-    import * as webllm from 'https://esm.run/@mlc-ai/web-llm';
+import {
+  AutoProcessor,
+  AutoModelForCausalLM,
+  TextStreamer,
+  InterruptableStoppingCriteria,
+} from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.0-next.5";
 
-    const chatContainer = document.getElementById('chatContainer');
-    const userInput = document.getElementById('userInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const statusText = document.getElementById('statusText');
-    const dot = document.getElementById('dot');
+const MODEL_ID = "onnx-community/Liquid-LFM-2.5-350M-ONNX";
 
-    let engine = null;
-    let modelLoaded = false;
-    let isGenerating = false;
+const els = {
+  statusDot: document.getElementById("status-dot"),
+  statusText: document.getElementById("status-text"),
+  progressWrap: document.getElementById("progress-wrap"),
+  progressBar: document.getElementById("progress-bar"),
+  loadBtn: document.getElementById("load-btn"),
+  dtypeSelect: document.getElementById("dtype-select"),
+  resetBtn: document.getElementById("reset-btn"),
+  chat: document.getElementById("chat"),
+  welcome: document.getElementById("welcome"),
+  input: document.getElementById("input"),
+  sendBtn: document.getElementById("send-btn"),
+  stopBtn: document.getElementById("stop-btn"),
+  perfInfo: document.getElementById("perf-info"),
+};
 
-    // --- LFM 2.5 230M 公開量子化モデル用の正しい設定 ---
-    const MODEL_ID = 'Liquid-LFM-2.5-230M-q4f16_1-MLC'; 
-    const MODEL_URL = 'https://huggingface.co/mlc-ai/Liquid-LFM-2.5-230M-q4f16_1-MLC';
+let processor = null;
+let tokenizer = null;
+let model = null;
+let modelReady = false;
+let modelLoading = false;
+let messages = [];
+let stoppingCriteria = null;
+let generating = false;
 
-    function setStatus(status, text) {
-        statusText.textContent = text;
-        dot.className = 'dot ' + status;
-    }
+function setStatus(text, mode) {
+  els.statusText.textContent = text;
+  els.statusDot.className = "dot" + (mode ? " " + mode : "");
+}
 
-    function addMessage(role, content) {
-        const group = document.createElement('div');
-        group.className = 'msg-group ' + role;
-        const bubble = document.createElement('div');
-        bubble.className = 'msg-bubble';
-        bubble.textContent = content;
-        group.appendChild(bubble);
-        chatContainer.appendChild(group);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-        return bubble;
-    }
+function setProgress(pct) {
+  if (pct == null) {
+    els.progressWrap.style.display = "none";
+    return;
+  }
+  els.progressWrap.style.display = "block";
+  els.progressBar.style.width = Math.max(0, Math.min(100, pct)) + "%";
+}
 
-    async function initializeModel() {
-        try {
-            setStatus('loading', 'モデル初期化中...');
+async function checkWebGPU() {
+  if (!("gpu" in navigator)) {
+    throw new Error("このブラウザは WebGPU に対応していません。Chrome/Edge の最新版をお使いください。");
+  }
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) {
+    throw new Error("WebGPU アダプタが見つかりません。chrome://gpu で状態を確認してください。");
+  }
+}
 
-            // WebLLMにカスタムモデルの場所（パブリックURL）を教える
-            const appConfig = {
-                model_list: [
-                    {
-                        model: MODEL_URL,
-                        model_id: MODEL_ID,
-                        model_lib: 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_5_9/Liquid-LFM-2.5-230M-q4f16_1-webgpu.wasm'
-                    }
-                ]
-            };
+async function loadModel() {
+  if (modelReady || modelLoading) return;
+  modelLoading = true;
+  els.loadBtn.disabled = true;
+  els.dtypeSelect.disabled = true;
+  const dtype = els.dtypeSelect.value;
 
-            // エンジンの初期化に appConfig を適用
-            engine = await webllm.CreateMLCEngine(MODEL_ID, {
-                appConfig: appConfig,
-                initProgressCallback: (info) => {
-                    const percent = Math.round(info.progress * 100);
-                    setStatus('loading', `ロード中: ${percent}%`);
-                }
-            });
+  try {
+    setStatus("WebGPU を確認中...", "loading");
+    await checkWebGPU();
 
-            modelLoaded = true;
-            setStatus('ready', '準備完了');
-            userInput.disabled = false;
-            sendBtn.disabled = false;
-            userInput.focus();
-            addMessage('bot', 'こんにちは👋 Liquid LFM 2.5 230M (量子化版) です。超軽量エッジAIの世界へようこそ！何かお手伝いできますか？');
+    setStatus("プロセッサ/トークナイザーを読み込み中...", "loading");
+    processor = await AutoProcessor.from_pretrained(MODEL_ID);
+    tokenizer = processor.tokenizer;
 
-        } catch (error) {
-            setStatus('error', 'エラー');
-            const errDiv = document.createElement('div');
-            errDiv.className = 'error-banner';
-            errDiv.textContent = '初期化エラー: ' + error.message;
-            chatContainer.appendChild(errDiv);
-            console.error(error);
+    setStatus("モデルを読み込み中... (初回はダウンロードに時間がかかります)", "loading");
+    const seenFiles = {};
+    model = await AutoModelForCausalLM.from_pretrained(MODEL_ID, {
+      dtype: {
+        embed_tokens: dtype,
+        vision_encoder: "fp16",
+        decoder_model_merged: dtype,
+      },
+      device: "webgpu",
+      progress_callback: (p) => {
+        if (p.status === "progress") {
+          seenFiles[p.file] = p;
+          const vals = Object.values(seenFiles);
+          const total = vals.reduce((a, f) => a + (f.total || 0), 0);
+          const loaded = vals.reduce((a, f) => a + (f.loaded || 0), 0);
+          const pct = total ? (loaded / total) * 100 : 0;
+          setProgress(pct);
+          setStatus(`ダウンロード中: ${p.file} (${(pct).toFixed(0)}%)`, "loading");
+        } else if (p.status === "done") {
+          setStatus(`読み込み完了: ${p.file}`, "loading");
+        } else if (p.status === "ready") {
+          setStatus("モデル初期化中...", "loading");
         }
-    }
-
-    async function generateResponse(userMessage) {
-        if (!modelLoaded || isGenerating) return;
-        isGenerating = true;
-        userInput.disabled = true;
-        sendBtn.disabled = true;
-
-        addMessage('user', userMessage);
-
-        const thinkingGroup = document.createElement('div');
-        thinkingGroup.className = 'msg-group bot';
-        const thinkingBubble = document.createElement('div');
-        thinkingBubble.className = 'msg-bubble thinking';
-        thinkingBubble.textContent = 'AIが考え中...';
-        thinkingGroup.appendChild(thinkingBubble);
-        chatContainer.appendChild(thinkingGroup);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-
-        const replyGroup = document.createElement('div');
-        replyGroup.className = 'msg-group bot';
-        const replyBubble = document.createElement('div');
-        replyBubble.className = 'msg-bubble';
-        replyGroup.appendChild(replyBubble);
-
-        let fullResponse = '';
-        let replaced = false;
-
-        try {
-            const chunks = await engine.generate(userMessage, (chunk) => {
-                fullResponse += chunk;
-                if (!replaced) {
-                    chatContainer.removeChild(thinkingGroup);
-                    chatContainer.appendChild(replyGroup);
-                    replaced = true;
-                }
-                replyBubble.textContent = fullResponse;
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-            });
-        } catch (error) {
-            if (chatContainer.contains(thinkingGroup)) chatContainer.removeChild(thinkingGroup);
-            const errDiv = document.createElement('div');
-            errDiv.className = 'error-banner';
-            errDiv.textContent = '生成エラー: ' + error.message;
-            chatContainer.appendChild(errDiv);
-            console.error(error);
-        } finally {
-            isGenerating = false;
-            userInput.disabled = false;
-            sendBtn.disabled = false;
-            userInput.focus();
-        }
-    }
-
-    function handleSend() {
-        const message = userInput.value.trim();
-        if (message && !isGenerating) {
-            userInput.value = '';
-            generateResponse(message);
-        }
-    }
-
-    userInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); handleSend(); }
+      },
     });
-    sendBtn.addEventListener('click', handleSend);
 
-    initializeModel();
+    setProgress(null);
+    modelReady = true;
+    setStatus(`準備完了 (dtype: ${dtype}, device: webgpu)`, "ready");
+    els.loadBtn.textContent = "読み込み済み";
+  } catch (err) {
+    console.error(err);
+    setProgress(null);
+    setStatus("読み込みエラー: " + err.message, "error");
+    els.loadBtn.disabled = false;
+    els.dtypeSelect.disabled = false;
+    modelLoading = false;
+    throw err;
+  }
+  modelLoading = false;
+}
+
+function addMessage(role, content) {
+  if (els.welcome) {
+    els.welcome.remove();
+    els.welcome = null;
+  }
+  const wrap = document.createElement("div");
+  wrap.className = "msg " + (role === "user" ? "user" : "bot");
+  const avatar = document.createElement("div");
+  avatar.className = "avatar";
+  avatar.textContent = role === "user" ? "You" : "AI";
+  const bubble = document.createElement("div");
+  bubble.className = "bubble" + (content === "" ? " empty" : "");
+  bubble.textContent = content;
+  wrap.appendChild(avatar);
+  wrap.appendChild(bubble);
+  els.chat.appendChild(wrap);
+  els.chat.scrollTop = els.chat.scrollHeight;
+  return bubble;
+}
+
+function autoResizeTextarea() {
+  els.input.style.height = "auto";
+  els.input.style.height = Math.min(els.input.scrollHeight, 160) + "px";
+}
+els.input.addEventListener("input", autoResizeTextarea);
+
+els.input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+els.sendBtn.addEventListener("click", sendMessage);
+els.loadBtn.addEventListener("click", () => loadModel().catch(() => {}));
+
+els.resetBtn.addEventListener("click", () => {
+  messages = [];
+  els.chat.innerHTML = "";
+  const w = document.createElement("div");
+  w.id = "welcome";
+  w.innerHTML = `<h2>会話をリセットしました</h2><p>新しい会話を始めてください。</p>`;
+  els.chat.appendChild(w);
+  els.welcome = w;
+});
+
+els.stopBtn.addEventListener("click", () => {
+  if (stoppingCriteria) stoppingCriteria.interrupt();
+});
+
+async function sendMessage() {
+  const text = els.input.value.trim();
+  if (!text || generating) return;
+
+  if (!modelReady) {
+    setStatus("モデルを読み込んでいます。少しお待ちください...", "loading");
+    try {
+      await loadModel();
+    } catch {
+      return;
+    }
+  }
+
+  els.input.value = "";
+  autoResizeTextarea();
+  addMessage("user", text);
+  messages.push({ role: "user", content: text });
+
+  const botBubble = addMessage("bot", "");
+  generating = true;
+  els.sendBtn.disabled = true;
+  els.stopBtn.style.display = "inline-block";
+
+  let fullText = "";
+  let startTime = performance.now();
+  let tokenCount = 0;
+
+  stoppingCriteria = new InterruptableStoppingCriteria();
+
+  const streamer = new TextStreamer(tokenizer, {
+    skip_prompt: true,
+    skip_special_tokens: true,
+    callback_function: (token) => {
+      fullText += token;
+      tokenCount++;
+      botBubble.textContent = fullText;
+      botBubble.classList.remove("empty");
+      els.chat.scrollTop = els.chat.scrollHeight;
+    },
+  });
+
+  try {
+    const text = processor.apply_chat_template(messages, {
+      add_generation_prompt: true,
+    });
+    const inputs = await processor(text);
+
+    await model.generate({
+      ...inputs,
+      max_new_tokens: 768,
+      do_sample: true,
+      temperature: 0.3,
+      top_k: 20,
+      top_p: 0.95,
+      repetition_penalty: 1.05,
+      streamer,
+      stopping_criteria: stoppingCriteria,
+    });
+
+    const elapsed = (performance.now() - startTime) / 1000;
+    const tps = tokenCount / elapsed;
+    els.perfInfo.textContent = `${tokenCount} tokens / ${elapsed.toFixed(1)}s (${tps.toFixed(1)} tok/s)`;
+
+    messages.push({ role: "assistant", content: fullText || "(応答なし)" });
+    if (!fullText) botBubble.textContent = "(応答が生成されませんでした)";
+  } catch (err) {
+    console.error(err);
+    botBubble.textContent = "エラーが発生しました: " + err.message;
+  } finally {
+    generating = false;
+    els.sendBtn.disabled = false;
+    els.stopBtn.style.display = "none";
+    stoppingCriteria = null;
+  }
+}
+
+setStatus("準備済み。最初のメッセージを送ると自動でモデルを読み込みます。");
 </script>
 </body>
 </html>
