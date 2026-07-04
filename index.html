@@ -97,7 +97,9 @@
     let modelLoaded = false;
     let isGenerating = false;
 
-    const MODEL_ID = 'Liquid-LFM-2.5-1.2B-jp-IQ3_M';
+    // --- LFM 2.5 230M 量子化モデル用の設定 ---
+    const MODEL_ID = 'Liquid-LFM-2.5-230M-q4f16_1-MLC'; 
+    const MODEL_URL = 'https://huggingface.co/webml-community/Liquid-LFM-2.5-230M-q4f16_1-MLC';
 
     function setStatus(status, text) {
         statusText.textContent = text;
@@ -120,7 +122,20 @@
         try {
             setStatus('loading', 'モデル初期化中...');
 
+            // WebLLMにカスタム量子化モデルの配置場所を認識させる設定
+            const appConfig = {
+                model_list: [
+                    {
+                        model: MODEL_URL,
+                        model_id: MODEL_ID,
+                        model_lib: 'https://raw.githubusercontent.com/webml-community/webml-wams/main/lfm2/lfm2-webgpu.wasm'
+                    }
+                ]
+            };
+
+            // エンジンの初期化に appConfig を渡す
             engine = await webllm.CreateMLCEngine(MODEL_ID, {
+                appConfig: appConfig,
                 initProgressCallback: (info) => {
                     const percent = Math.round(info.progress * 100);
                     setStatus('loading', `ロード中: ${percent}%`);
@@ -132,7 +147,7 @@
             userInput.disabled = false;
             sendBtn.disabled = false;
             userInput.focus();
-            addMessage('bot', 'こんにちは👋 Liquid LFM 2.5 1.2B JP です。何かお手伝いできますか？');
+            addMessage('bot', 'こんにちは👋 Liquid LFM 2.5 230M (量子化版) です。超軽量エッジAIの世界へようこそ！何かお手伝いできますか？');
 
         } catch (error) {
             setStatus('error', 'エラー');
