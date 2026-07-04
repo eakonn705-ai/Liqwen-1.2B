@@ -71,7 +71,7 @@
 <body>
 <div class="container">
     <div class="header">
-        <div class="header-title">Liquid LFM 2.5 1.2B JP Chat</div>
+        <div class="header-title">Liquid LFM 2.5 230M Chat</div>
         <div class="header-info">
             <span class="dot loading" id="dot"></span>
             <span id="statusText">初期化中...</span>
@@ -97,9 +97,9 @@
     let modelLoaded = false;
     let isGenerating = false;
 
-    // --- LFM 2.5 230M 量子化モデル用の設定 ---
+    // --- LFM 2.5 230M 公開量子化モデル用の正しい設定 ---
     const MODEL_ID = 'Liquid-LFM-2.5-230M-q4f16_1-MLC'; 
-    const MODEL_URL = 'https://huggingface.co/webml-community/Liquid-LFM-2.5-230M-q4f16_1-MLC';
+    const MODEL_URL = 'https://huggingface.co/mlc-ai/Liquid-LFM-2.5-230M-q4f16_1-MLC';
 
     function setStatus(status, text) {
         statusText.textContent = text;
@@ -122,18 +122,18 @@
         try {
             setStatus('loading', 'モデル初期化中...');
 
-            // WebLLMにカスタム量子化モデルの配置場所を認識させる設定
+            // WebLLMにカスタムモデルの場所（パブリックURL）を教える
             const appConfig = {
                 model_list: [
                     {
                         model: MODEL_URL,
                         model_id: MODEL_ID,
-                        model_lib: 'https://raw.githubusercontent.com/webml-community/webml-wams/main/lfm2/lfm2-webgpu.wasm'
+                        model_lib: 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_5_9/Liquid-LFM-2.5-230M-q4f16_1-webgpu.wasm'
                     }
                 ]
             };
 
-            // エンジンの初期化に appConfig を渡す
+            // エンジンの初期化に appConfig を適用
             engine = await webllm.CreateMLCEngine(MODEL_ID, {
                 appConfig: appConfig,
                 initProgressCallback: (info) => {
