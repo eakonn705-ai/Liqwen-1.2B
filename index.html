@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liquid LFM 2.5 Chat</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #fafafa;
+            color: #333;
+            overflow: hidden;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: white;
+        }
+        .header {
+            padding: 14px 16px;
+            border-bottom: 1px solid #e8e8e8;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-title {
+            font-weight: 500;
+            font-size: 15px;
+        }
+        .header-info {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 4px;
+            animation: pulse-fast 1s infinite;
+        }
+        .status-indicator.ready {
+            background: #4caf50;
+            animation: none;
+        }
+        .status-indicator.loading {
+            background: #ff9800;
+        }
+        .status-indicator.error {
+            background: #f44336;
+            animation: none;
+        }
+        @keyframes pulse-fast { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            scroll-behavior: smooth;
+        }
+        
+        .chat-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-container::-webkit-scrollbar-thumb {
+            background: #ddd;
+            border-radius: 3px;
+        }
+        
+        .msg-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .msg-group.user {
+            justify-content: flex-end;
+        }
+        .msg-bubble {
+            max-width: 72%;
+            padding: 10px 13px;
+            border-radius: 12px;
+            word-wrap: break-word;
+            font-size: 14px;
+            line-height: 1.5;
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .msg-group.user .msg-bubble {
+            background: #667eea;
+            color: white;
+        }
+        .msg-group.bot .msg-bubble {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .msg-bubble.thinking {
+            font-style: italic;
+            color: #888;
+            background: #f5f5f5;
+        }
+        
+        .input-section {
+            padding: 12px 16px;
+            border-top: 1px solid #e8e8e8;
+            background: white;
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+        
+        .input-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        input[type="text"] {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        input[type="text"]:disabled {
+            background: #f5f5f5;
+            color: #999;
+        }
+        
+        button {
+            padding: 10px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        
+        button:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .info-bar {
+            background: #f5f9ff;
+            border-left: 3px solid #667eea;
+            padding: 10px 12px;
+            font-size: 12px;
+            color: #555;
+            margin-top: 8px;
+        }
+        
+        .error-banner {
+            background: #ffebee;
+            border-left: 3px solid #f44336;
+            padding: 10px 12px;
+            font-size: 12px;
+            color: #c62828;
+            border-radius: 4px;
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <div class="header-title">Liquid LFM 2.5 1.2B JP Chat</div>
+                <div class="header-info">
+                    <span class="status-indicator loading" id="indicator"></span>
+                    <span id="statusText">初期化中...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-container" id="chatContainer"></div>
+
+        <div class="input-section">
+            <div class="input-wrapper">
+                <input 
+                    type="text" 
+                    id="userInput" 
+                    placeholder="メッセージを入力してください..."
+                    disabled
+                >
+                <div class="info-bar" id="infoBar" style="display: none;"></div>
+            </div>
+            <button id="sendBtn" disabled>送信</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@latest/dist/web-llm.js"></script>
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const statusText = document.getElementById('statusText');
+        const indicator = document.getElementById('indicator');
+        const infoBar = document.getElementById('infoBar');
+
+        let engine = null;
+        let modelLoaded = false;
+        let isGenerating = false;
+        
+        const MODEL_ID = 'Liquid-LFM-2.5-1.2B-jp-IQ3_M';
+
+        function setStatus(status, text) {
+            statusText.textContent = text;
+            indicator.className = 'status-indicator ' + status;
+        }
+
+        function addMessage(role, content) {
+            const group = document.createElement('div');
+            group.className = 'msg-group ' + role;
+            const bubble = document.createElement('div');
+            bubble.className = 'msg-bubble';
+            bubble.textContent = content;
+            group.appendChild(bubble);
+            chatContainer.appendChild(group);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return bubble;
+        }
+
+        function showInfo(text) {
+            infoBar.textContent = text;
+            infoBar.style.display = 'block';
+        }
+
+        function hideInfo() {
+            infoBar.style.display = 'none';
+        }
+
+        async function initializeModel() {
+            try {
+                setStatus('loading', 'モデル初期化中...');
+                
+                const selectedModel = MODEL_ID;
+                engine = await webllm.CreateMLCEngine(
+                    selectedModel,
+                    {
+                        initProgressCallback: (info) => {
+                            const percent = Math.round(info.progress * 100);
+                            setStatus('loading', `ロード中: ${percent}%`);
+                        },
+                        appConfig: {
+                            log_level: 'INFO',
+                        }
+                    }
+                );
+
+                modelLoaded = true;
+                setStatus('ready', ' 準備完了');
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                userInput.focus();
+                
+                addMessage('bot', 'こんにちは👋 Liquid LFM 2.5 1.2B JP です。日本語での質問や会話にお答えします。');
+                showInfo('IQ3量子化モデル 1.2B パラメータ');
+                
+            } catch (error) {
+                setStatus('error', 'エラー: ' + error.message.substring(0, 30));
+                const errDiv = document.createElement('div');
+                errDiv.className = 'error-banner';
+                errDiv.textContent = '初期化エラー: ' + error.message;
+                chatContainer.appendChild(errDiv);
+                console.error('初期化エラー:', error);
+            }
+        }
+
+        async function generateResponse(userMessage) {
+            if (!modelLoaded || isGenerating) return;
+            
+            isGenerating = true;
+            userInput.disabled = true;
+            sendBtn.disabled = true;
+            hideInfo();
+
+            try {
+                addMessage('user', userMessage);
+
+                const thinkingGroup = document.createElement('div');
+                thinkingGroup.className = 'msg-group bot';
+                const thinkingBubble = document.createElement('div');
+                thinkingBubble.className = 'msg-bubble thinking';
+                thinkingBubble.textContent = 'AIが考え中...';
+                thinkingGroup.appendChild(thinkingBubble);
+                chatContainer.appendChild(thinkingGroup);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                let fullResponse = '';
+                const replyBubble = document.createElement('div');
+                replyBubble.className = 'msg-bubble';
+
+                const replyGroup = document.createElement('div');
+                replyGroup.className = 'msg-group bot';
+                replyGroup.appendChild(replyBubble);
+
+                await engine.generate(userMessage, (token) => {
+                    fullResponse += token;
+                    replyBubble.textContent = fullResponse;
+                    if (chatContainer.contains(thinkingGroup)) {
+                        chatContainer.removeChild(thinkingGroup);
+                        chatContainer.appendChild(replyGroup);
+                    }
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                });
+                
+                showInfo(`生成完了 | モデル: ${MODEL_ID}`);
+
+            } catch (error) {
+                if (chatContainer.lastChild && chatContainer.lastChild.querySelector('.msg-bubble.thinking')) {
+                    chatContainer.removeChild(chatContainer.lastChild);
+                }
+                const errDiv = document.createElement('div');
+                errDiv.className = 'error-banner';
+                errDiv.textContent = '生成エラー: ' + error.message;
+                chatContainer.appendChild(errDiv);
+                console.error('生成エラー:', error);
+            } finally {
+                isGenerating = false;
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                userInput.focus();
+            }
+        }
+
+        function handleSendMessage() {
+            const message = userInput.value.trim();
+            if (message && !isGenerating) {
+                userInput.value = '';
+                generateResponse(message);
+            }
+        }
+
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+            }
+        });
+
+        sendBtn.addEventListener('click', handleSendMessage);
+
+        window.addEventListener('load', initializeModel);
+    </script>
+</body>
+</html>
