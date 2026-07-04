@@ -226,7 +226,6 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@latest/dist/web-llm.js"></script>
     <script>
         const chatContainer = document.getElementById('chatContainer');
         const userInput = document.getElementById('userInput');
@@ -267,13 +266,34 @@
             infoBar.style.display = 'none';
         }
 
+        async function loadMLCEngine() {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@latest/dist/web-llm.js';
+                script.onload = () => {
+                    setTimeout(() => {
+                        if (typeof window.webllm !== 'undefined') {
+                            resolve(window.webllm);
+                        } else {
+                            reject(new Error('webllm library failed to load'));
+                        }
+                    }, 100);
+                };
+                script.onerror = () => reject(new Error('Failed to load webllm'));
+                document.head.appendChild(script);
+            });
+        }
+
         async function initializeModel() {
             try {
+                setStatus('loading', 'ライブラリ読み込み中...');
+                
+                const webllm = await loadMLCEngine();
+                
                 setStatus('loading', 'モデル初期化中...');
                 
-                const selectedModel = MODEL_ID;
                 engine = await webllm.CreateMLCEngine(
-                    selectedModel,
+                    MODEL_ID,
                     {
                         initProgressCallback: (info) => {
                             const percent = Math.round(info.progress * 100);
@@ -295,7 +315,7 @@
                 showInfo('IQ3量子化モデル 1.2B パラメータ');
                 
             } catch (error) {
-                setStatus('error', 'エラー: ' + error.message.substring(0, 30));
+                setStatus('error', 'エラー: ' + error.message.substring(0, 40));
                 const errDiv = document.createElement('div');
                 errDiv.className = 'error-banner';
                 errDiv.textContent = '初期化エラー: ' + error.message;
