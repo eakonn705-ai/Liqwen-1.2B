@@ -3,98 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Groq AI Chat</title>
+    <title>Groq AI Chat with Memory & Markdown</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
     <style>
-        /* 画面全体に広げるためのリセットとFlexbox設定 */
         html, body {
-            height: 100vh;
-            margin: 0;
-            padding: 0;
+            height: 100vh; margin: 0; padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f4f9;
-            display: flex;
-            flex-direction: column;
-            box-sizing: border-box;
+            background-color: #f4f4f9; display: flex; flex-direction: column; box-sizing: border-box;
         }
 
-        /* ヘッダー部分（タイトルとボタン） */
+        /* ヘッダー */
         .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 20px;
-            background-color: #ffffff;
-            border-bottom: 1px solid #ccc;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 20px; background-color: #ffffff; border-bottom: 1px solid #ccc;
         }
         .header h2 { margin: 0; font-size: 1.2rem; }
         .header-buttons { display: flex; gap: 10px; }
-        .header-buttons button {
-            padding: 6px 12px;
-            background-color: #6c757d;
-            font-size: 14px;
+        
+        /* 共通ボタンレイアウト */
+        button {
+            padding: 10px 20px; color: white; border: none; border-radius: 4px;
+            cursor: pointer; font-size: 14px; transition: background-color 0.2s;
         }
-        .header-buttons button:hover { background-color: #5a6268; }
+        .btn-primary { background-color: #28a745; }
+        .btn-primary:hover { background-color: #218838; }
+        .btn-secondary { background-color: #6c757d; }
+        .btn-secondary:hover { background-color: #5a6268; }
+        .btn-danger { background-color: #dc3545; }
+        .btn-danger:hover { background-color: #bd2130; }
+        button:disabled { background-color: #a5d6a7; cursor: not-allowed; }
 
-        /* チャットエリア（残りの画面幅を全て使う） */
+        /* メインコンテンツエリア */
+        .main-container { display: flex; flex-grow: 1; overflow: hidden; }
+
+        /* チャットエリア */
+        .chat-container {
+            flex-grow: 3; display: flex; flex-direction: column;
+            background-color: #ffffff; border-right: 1px solid #ccc;
+        }
         #chat-box {
-            flex-grow: 1;
-            padding: 20px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            background-color: #ffffff;
+            flex-grow: 1; padding: 20px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 15px;
         }
 
-        /* 吹き出しのデザイン */
+        /* 記憶（Memory）サイドパネル */
+        .memory-panel {
+            flex-grow: 1; min-width: 250px; max-width: 350px;
+            background-color: #f8f9fa; padding: 20px; overflow-y: auto; box-sizing: border-box;
+        }
+        .memory-panel h3 { margin-top: 0; font-size: 1.1rem; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 5px; }
+        #memory-list { padding-left: 20px; font-size: 14px; color: #495057; line-height: 1.6; }
+
+        /* 吹き出しの基本デザイン */
         .message {
-            padding: 12px 16px;
-            border-radius: 15px;
-            max-width: 70%; /* 画面が広いので最大幅を少し絞る */
-            line-height: 1.5;
-            word-wrap: break-word;
-            white-space: pre-wrap; /* 改行を反映 */
+            padding: 12px 16px; border-radius: 15px; max-width: 75%;
+            line-height: 1.6; word-wrap: break-word;
         }
         .user-message {
-            background-color: #007bff;
-            color: white;
-            align-self: flex-end;
-            border-bottom-right-radius: 2px;
+            background-color: #007bff; color: white;
+            align-self: flex-end; border-bottom-right-radius: 2px;
         }
         .ai-message {
-            background-color: #e9ecef;
-            color: black;
-            align-self: flex-start;
-            border-bottom-left-radius: 2px;
+            background-color: #e9ecef; color: #333;
+            align-self: flex-start; border-bottom-left-radius: 2px;
         }
+
+        /* --- Markdown 用のスタイル追加 --- */
+        .message p { margin: 0 0 10px 0; }
+        .message p:last-child { margin: 0; }
+        .message ul, .message ol { margin: 0 0 10px 20px; padding: 0; }
+        
+        /* インラインコード */
+        .message code {
+            background-color: rgba(0, 0, 0, 0.1);
+            padding: 2px 6px; border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace; font-size: 0.9em;
+        }
+        /* ユーザー側のインラインコードは見やすく調整 */
+        .user-message code { background-color: rgba(255, 255, 255, 0.2); }
+        
+        /* コードブロック */
+        .message pre {
+            background-color: #2d2d2d; color: #f8f8f2;
+            padding: 15px; border-radius: 8px; overflow-x: auto;
+            margin: 10px 0;
+        }
+        .message pre code {
+            background-color: transparent; padding: 0; color: inherit;
+        }
+        /* テーブル */
+        .message table { border-collapse: collapse; width: 100%; margin-bottom: 10px; }
+        .message th, .message td { border: 1px solid #ccc; padding: 6px 10px; }
+        .user-message th, .user-message td { border-color: rgba(255,255,255,0.3); }
 
         /* 入力エリア */
         .input-area {
-            display: flex;
-            gap: 10px;
-            padding: 15px 20px;
-            background-color: #f4f4f9;
-            border-top: 1px solid #ccc;
+            display: flex; gap: 10px; padding: 15px 20px;
+            background-color: #f4f4f9; border-top: 1px solid #ccc;
         }
         #user-input {
-            flex-grow: 1;
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 16px;
+            flex-grow: 1; padding: 12px; border: 1px solid #ccc;
+            border-radius: 4px; font-size: 16px;
         }
-        button {
-            padding: 12px 24px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.2s;
-        }
-        button:hover { background-color: #218838; }
-        button:disabled { background-color: #a5d6a7; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -102,28 +114,54 @@
     <div class="header">
         <h2>Groq Chat (Model: GPTOSS120B)</h2>
         <div class="header-buttons">
-            <button onclick="downloadHistory()">履歴をダウンロード</button>
-            <input type="file" id="file-upload" accept=".json" style="display: none;" onchange="uploadHistory(event)">
-            <button onclick="document.getElementById('file-upload').click()">履歴をアップロード</button>
+            <button class="btn-danger" onclick="newChat()">新しいチャット</button>
+            <button class="btn-secondary" onclick="downloadData()">履歴＆記憶を保存</button>
+            <input type="file" id="file-upload" accept=".json" style="display: none;" onchange="uploadData(event)">
+            <button class="btn-secondary" onclick="document.getElementById('file-upload').click()">データを復元</button>
         </div>
     </div>
 
-    <div id="chat-box"></div>
-    
-    <div class="input-area">
-        <input type="text" id="user-input" placeholder="メッセージを入力..." onkeypress="handleKeyPress(event)">
-        <button id="send-btn" onclick="sendMessage()">送信</button>
+    <div class="main-container">
+        <div class="chat-container">
+            <div id="chat-box"></div>
+            <div class="input-area">
+                <input type="text" id="user-input" placeholder="メッセージを入力..." onkeypress="handleKeyPress(event)">
+                <button id="send-btn" class="btn-primary" onclick="sendMessage()">送信</button>
+            </div>
+        </div>
+
+        <div class="memory-panel">
+            <h3>現在の記憶 (Memory)</h3>
+            <ul id="memory-list">
+                <li>（記憶された情報はありません）</li>
+            </ul>
+        </div>
     </div>
 
     <script>
         // 【重要】ここにデプロイしたCloudflare WorkerのURLを入力してください
         const WORKER_URL = "https://curly-bird-8641.18-kota-shobun.workers.dev/";
         
-        let conversationHistory = [
-            { role: "system", content: "あなたは優秀なAIアシスタントです。日本語で簡潔に答えてください。" }
-        ];
+        let conversationHistory = [];
+        let memories = [];
 
-        // --- メッセージ送信処理 ---
+        const DEFAULT_SYSTEM_PROMPT = { role: "system", content: "あなたは優秀なAIアシスタントです。回答はMarkdown記法を用いて、見やすく構造化してください。" };
+
+        function initChat() {
+            conversationHistory = [DEFAULT_SYSTEM_PROMPT];
+            document.getElementById("chat-box").innerHTML = "";
+            appendMessage("ai", "こんにちは！何かお手伝いできることはありますか？");
+            updateMemoryUI();
+        }
+
+        function newChat() {
+            if (confirm("現在のチャット履歴をクリアして新しい会話を始めますか？（※右側の「記憶(Memory)」は維持されます）")) {
+                conversationHistory = [DEFAULT_SYSTEM_PROMPT];
+                document.getElementById("chat-box").innerHTML = "";
+                appendMessage("ai", "新しいチャットを開始しました。");
+            }
+        }
+
         async function sendMessage() {
             const inputField = document.getElementById("user-input");
             const sendBtn = document.getElementById("send-btn");
@@ -142,21 +180,29 @@
                 const response = await fetch(WORKER_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ messages: conversationHistory })
+                    body: JSON.stringify({ 
+                        messages: conversationHistory,
+                        memories: memories 
+                    })
                 });
 
                 const data = await response.json();
                 
                 if (data.error) {
-                    appendMessage("ai", `エラーが発生しました: ${data.error} \n詳細: ${data.details || ""}`);
+                    appendMessage("ai", `**エラーが発生しました:** ${data.error} \n\n詳細: ${data.details || ""}`);
                     conversationHistory.pop();
                 } else {
-                    const aiResponse = data.choices[0].message.content;
+                    let aiResponse = data.choices[0].message.content;
+                    
+                    // Memoryの抽出処理（生のテキストデータから抽出）
+                    extractAndProcessMemories(aiResponse);
+
+                    // 画面表示
                     appendMessage("ai", aiResponse);
                     conversationHistory.push({ role: "assistant", content: aiResponse });
                 }
             } catch (error) {
-                appendMessage("ai", "通信エラーが発生しました。WorkerのURLが正しいか確認してください。");
+                appendMessage("ai", "**通信エラーが発生しました。**");
                 conversationHistory.pop();
             } finally {
                 sendBtn.disabled = false;
@@ -165,33 +211,70 @@
             }
         }
 
-        // --- 画面へのメッセージ描画 ---
+        function extractAndProcessMemories(text) {
+            const regex = /<memory>([\s\S]*?)<\/memory>/g;
+            let match;
+            let updated = false;
+
+            while ((match = regex.exec(text)) !== null) {
+                const memoryContent = match[1].trim();
+                if (memoryContent && !memories.includes(memoryContent)) {
+                    memories.push(memoryContent);
+                    updated = true;
+                }
+            }
+
+            if (updated) {
+                updateMemoryUI();
+            }
+        }
+
+        function updateMemoryUI() {
+            const listContainer = document.getElementById("memory-list");
+            listContainer.innerHTML = "";
+            
+            if (memories.length === 0) {
+                listContainer.innerHTML = "<li>（記憶された情報はありません）</li>";
+                return;
+            }
+
+            memories.forEach(m => {
+                const li = document.createElement("li");
+                li.textContent = m;
+                listContainer.appendChild(li);
+            });
+        }
+
+        // --- Markdown対応のメッセージ描画処理 ---
         function appendMessage(role, text) {
             const chatBox = document.getElementById("chat-box");
             const messageDiv = document.createElement("div");
             messageDiv.classList.add("message", role === "user" ? "user-message" : "ai-message");
-            messageDiv.textContent = text;
+            
+            // marked.js を使用して Markdown を HTML に変換
+            // xss対策を厳密にする場合はDOMPurifyなどを挟むのがベストですが、今回は簡易的に直接出力します
+            messageDiv.innerHTML = marked.parse(text);
+            
             chatBox.appendChild(messageDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // --- 履歴をJSON形式でダウンロード ---
-        function downloadHistory() {
-            if (conversationHistory.length <= 1) {
-                alert("ダウンロードする履歴がありません。");
+        function downloadData() {
+            if (conversationHistory.length <= 1 && memories.length === 0) {
+                alert("ダウンロードするデータがありません。");
                 return;
             }
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(conversationHistory));
+            const exportData = { history: conversationHistory, memories: memories };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData));
             const downloadAnchorNode = document.createElement('a');
             downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", "chat_history.json");
-            document.body.appendChild(downloadAnchorNode); // Firefox対策
+            downloadAnchorNode.setAttribute("download", "chat_session_with_memory.json");
+            document.body.appendChild(downloadAnchorNode);
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
         }
 
-        // --- JSONファイルから履歴をアップロード ---
-        function uploadHistory(event) {
+        function uploadData(event) {
             const file = event.target.files[0];
             if (!file) return;
 
@@ -199,28 +282,27 @@
             reader.onload = function(e) {
                 try {
                     const loadedData = JSON.parse(e.target.result);
-                    if (Array.isArray(loadedData)) {
-                        conversationHistory = loadedData;
-                        renderHistoryFromData();
+                    if (loadedData.history && loadedData.memories) {
+                        conversationHistory = loadedData.history;
+                        memories = loadedData.memories;
+                        renderChatFromHistory();
+                        updateMemoryUI();
                     } else {
-                        alert("無効な履歴データです。");
+                        alert("無効なデータ形式です。");
                     }
                 } catch (error) {
-                    alert("ファイルの読み込みに失敗しました。JSONファイルを選択してください。");
+                    alert("ファイルの読み込みに失敗しました。");
                 }
             };
             reader.readAsText(file);
-            event.target.value = ""; // 同じファイルを再度選べるようにリセット
+            event.target.value = "";
         }
 
-        // --- アップロードされた履歴データをもとに画面を再描画 ---
-        function renderHistoryFromData() {
+        function renderChatFromHistory() {
             const chatBox = document.getElementById("chat-box");
-            chatBox.innerHTML = ""; // 現在の表示をクリア
-            
+            chatBox.innerHTML = "";
             conversationHistory.forEach(msg => {
                 if (msg.role !== "system") {
-                    // roleが 'user' なら user、それ以外(assistant)は ai として描画
                     appendMessage(msg.role === "user" ? "user" : "ai", msg.content);
                 }
             });
@@ -231,6 +313,8 @@
                 sendMessage();
             }
         }
+
+        initChat();
     </script>
 </body>
 </html>
