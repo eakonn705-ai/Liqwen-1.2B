@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASUKA.LM</title>
+    <title>AI Chat Station - Cloud Auto Save</title>
     
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
@@ -19,13 +19,13 @@
             padding: 10px 20px; color: white; border: none; border-radius: 4px;
             cursor: pointer; font-size: 14px; transition: background-color 0.2s;
         }
-        .btn-primary { background-color: #28a745; }
-        .btn-primary:hover { background-color: #218838; }
+        .btn-primary { background-color: #007bff; }
+        .btn-primary:hover { background-color: #0056b3; }
         .btn-secondary { background-color: #6c757d; }
         .btn-secondary:hover { background-color: #5a6268; }
         .btn-danger { background-color: #dc3545; }
         .btn-danger:hover { background-color: #bd2130; }
-        button:disabled { background-color: #a5d6a7; cursor: not-allowed; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
 
         /* 画面表示切り替え */
         .view-section { display: none; height: 100vh; flex-direction: column; }
@@ -39,7 +39,6 @@
         .top-container h1 { font-size: 2.5rem; margin-bottom: 10px; color: #007bff; }
         .top-container p { color: #666; margin-bottom: 30px; }
         
-        /* モデル作成フォーム */
         .create-model-form {
             background: #ffffff; border: 1px solid #ccc; border-radius: 12px;
             padding: 20px; width: 100%; max-width: 600px; margin-bottom: 40px;
@@ -76,13 +75,14 @@
         .header-title-area { display: flex; align-items: center; gap: 12px; }
         .header-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
         .header h2 { margin: 0; font-size: 1.2rem; }
-        .header-buttons { display: flex; gap: 10px; }
+        .header-buttons { display: flex; gap: 10px; align-items: center; }
+        .autosave-status { font-size: 12px; color: #28a745; font-weight: bold; }
         
         .main-container { display: flex; flex-grow: 1; overflow: hidden; }
         .chat-container { flex-grow: 3; display: flex; flex-direction: column; background-color: #ffffff; border-right: 1px solid #ccc; }
         #chat-box { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
 
-        /* 3層管理サイドパネル */
+        /* 3層管理パネル */
         .memory-panel {
             flex-grow: 1; min-width: 280px; max-width: 380px;
             background-color: #f8f9fa; padding: 20px; overflow-y: auto; box-sizing: border-box;
@@ -97,7 +97,6 @@
         .user-message { background-color: #007bff; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
         .ai-message { background-color: #e9ecef; color: #333; align-self: flex-start; border-bottom-left-radius: 2px; }
 
-        /* Markdown スタイル */
         .message p { margin: 0 0 10px 0; }
         .message p:last-child { margin: 0; }
         .message ul, .message ol { margin: 0 0 10px 20px; padding: 0; }
@@ -105,8 +104,6 @@
         .user-message code { background-color: rgba(255, 255, 255, 0.2); }
         .message pre { background-color: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 8px; overflow-x: auto; margin: 10px 0; }
         .message pre code { background-color: transparent; padding: 0; color: inherit; }
-        .message table { border-collapse: collapse; width: 100%; margin-bottom: 10px; }
-        .message th, .message td { border: 1px solid #ccc; padding: 6px 10px; }
 
         /* 入力エリア */
         .input-area { display: flex; gap: 10px; padding: 15px 20px; background-color: #f4f4f9; border-top: 1px solid #ccc; }
@@ -118,30 +115,24 @@
     <div id="top-view" class="view-section view-active">
         <div class="top-container">
             <h1>AI Chat Station</h1>
-            <p>対話するAIモデルを選択するか、新しいカスタムモデルを作成してください</p>
+            <p>対話するAIモデルを選択するか、新しいモデル名を追加してください（すべてクラウドへ同期されます）</p>
             
             <div class="create-model-form">
-                <h2>＋ 新しいカスタムモデルを追加 (画面上の一時追加)</h2>
+                <h2>＋ 新しいAIモデルを追加</h2>
                 <div class="form-group">
-                    <label for="new-model-id">モデルID / API識別子 (例: meta/llama-3-70b)</label>
-                    <input type="text" id="new-model-id" placeholder="provider/model-name">
-                </div>
-                <div class="form-group">
-                    <label for="new-model-name">表示名 (例: Llama3 70B カスタム)</label>
-                    <input type="text" id="new-model-name" placeholder="自由な名前を入力">
+                    <label for="new-model-name">モデル名 (例: My-Custom-AI)</label>
+                    <input type="text" id="new-model-name" placeholder="自由なモデル名（識別キーになります）">
                 </div>
                 <div class="form-group">
                     <label for="new-model-desc">説明文</label>
-                    <textarea id="new-model-desc" placeholder="このモデルの特徴や用途を入力"></textarea>
+                    <textarea id="new-model-desc" placeholder="特徴や用途を入力"></textarea>
                 </div>
-                <button class="btn-primary" onclick="createNewModel()">モデルを追加する</button>
+                <button class="btn-primary" onclick="createNewModel()">モデルを追加してスプシへ登録</button>
             </div>
 
-            <div id="model-grid" class="grid-container">
-                </div>
+            <div id="model-grid" class="grid-container"></div>
         </div>
     </div>
-
 
     <div id="chat-view" class="view-section">
         <div class="header">
@@ -150,11 +141,9 @@
                 <h2 id="current-model-title">Groq Chat</h2>
             </div>
             <div class="header-buttons">
-                <button class="btn-secondary" onclick="backToTop()">モデルを変更</button>
-                <button class="btn-danger" onclick="newChat()">クリア</button>
-                <button class="btn-secondary" onclick="downloadData()">保存</button>
-                <input type="file" id="file-upload" accept=".json" style="display: none;" onchange="uploadData(event)">
-                <button class="btn-secondary" onclick="document.getElementById('file-upload').click()">復元</button>
+                <span id="save-status" class="autosave-status">☁️ クラウド同期済み</span>
+                <button class="btn-secondary" onclick="backToTop()">戻る</button>
+                <button class="btn-danger" onclick="newChat()">履歴クリア</button>
             </div>
         </div>
 
@@ -174,15 +163,11 @@
                 </div>
                 <div class="memory-section">
                     <h3>2. 現在の記憶 (Memory)</h3>
-                    <ul id="memory-list" class="data-list">
-                        <li>（記憶された事実はありません）</li>
-                    </ul>
+                    <ul id="memory-list" class="data-list"></ul>
                 </div>
                 <div class="memory-section">
                     <h3>3. 現在の戦略・教訓 (Strategy)</h3>
-                    <ul id="strategy-list" class="data-list">
-                        <li>（蓄積された戦略はありません）</li>
-                    </ul>
+                    <ul id="strategy-list" class="data-list"></ul>
                 </div>
             </div>
         </div>
@@ -190,59 +175,51 @@
 
     <script>
         // ================================================================
-        // 【重要】設定項目
+        // 【重要】URL設定
         // ================================================================
         const WORKER_URL = "https://curly-bird-8641.18-kota-shobun.workers.dev/";
-        const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzO2lUwa2odyJXMYkSbj1fz8shAeftIOjqlqylMT6KYfyg4wj3UusjhikRdYPpqAid5hA/exec";
+        const GAS_API_URL = "https://script.google.com/macros/s/AKfycbz0uCNsOOpu3Fo117e-dWbxFw2SQAu0wFQ0zlJSAltAYMnqqAbuNUlA4hoNTT2LU8TMyA/exec";
         // ================================================================
 
-        let selectedModelId = ""; 
+        let selectedModelName = ""; 
         let conversationHistory = [];
         let persona = "";
         let memories = [];
         let strategies = [];
-        
-        // GASから読み込んだ、または手動追加したモデル一覧を保持する配列
         let loadedModelsList = [];
 
-        const DEFAULT_SYSTEM_PROMPT = { role: "system", content: "あなたは優秀なAIアシスタントです。回答はMarkdown記法を用いて見やすく構造化してください。" };
+        const DEFAULT_SYSTEM_PROMPT = { role: "system", content: "あなたは優秀なAIアシスタントです。回答はMarkdown記法を用いて構造化してください。" };
 
-        // 起動時に【GAS】からモデル一覧を自動ロード
+        // 起動時にGASからスプシ内の全データをロード
         async function loadModels() {
             try {
                 const response = await fetch(GAS_API_URL);
                 if (response.ok) {
                     loadedModelsList = await response.json();
-                } else {
-                    console.error("GAS APIからの応答が不正です。");
                 }
             } catch (error) {
-                console.error("GASからのモデルデータ取得に失敗しました。URLやデプロイ設定を確認してください。");
+                console.error("GASからのデータロードに失敗しました。");
             }
-            // 取得成否に関わらず、描画処理を実行（手動追加機能を生かすため）
             renderModelGrid();
         }
 
-        // 画面にモデルカード一覧を出力する共通処理
         function renderModelGrid() {
             const grid = document.getElementById('model-grid');
             grid.innerHTML = "";
 
             if (loadedModelsList.length === 0) {
-                grid.innerHTML = "<p style='grid-column: 1/-1; color: #cc0000; font-weight: bold;'>GASからモデルを読み込めませんでした。URLを設定するか、上のフォームから一時的なカスタムモデルを追加してください。</p>";
+                grid.innerHTML = "<p style='grid-column: 1/-1; color: #cc0000;'>モデルデータがありません。上のフォームから登録してください。</p>";
                 return;
             }
 
             loadedModelsList.forEach(model => {
-                const safeBaseName = model.id.replace(/\//g, '-');
-                
-                // スプシ側に直URLがあればそれを使い、空欄なら同階層の「ファイル名.png / .json」を動的参照
+                // モデル名をベースに画像パスを自動生成 (例: "GPT-OSS 120B" -> "GPT-OSS-120B.png")
+                const safeBaseName = model.name.replace(/[^a-zA-Z0-9]/g, '-');
                 const imageUrl = model.imageUrl ? model.imageUrl : `${safeBaseName}.png`;
-                const modelJsonUrl = model.configJsonUrl ? model.configJsonUrl : `${safeBaseName}.json`;
 
                 const card = document.createElement('div');
                 card.className = 'model-card';
-                card.onclick = () => selectModel(model.id, model.name, imageUrl, modelJsonUrl);
+                card.onclick = () => selectModel(model);
 
                 card.innerHTML = `
                     <img class="model-avatar" src="${imageUrl}" onerror="this.src='https://via.placeholder.com/100?text=${encodeURIComponent(model.name)}'" alt="${model.name}">
@@ -253,78 +230,93 @@
             });
         }
 
-        // 画面上で新しいモデルを一時的に作成・追加するUIロジック
+        // 新しいモデル名を入力して追加
         function createNewModel() {
-            const idField = document.getElementById('new-model-id');
             const nameField = document.getElementById('new-model-name');
             const descField = document.getElementById('new-model-desc');
-
-            const id = idField.value.trim();
             const name = nameField.value.trim();
             const description = descField.value.trim();
 
-            if (!id || !name) {
-                alert("モデルIDと表示名は必須入力項目です。");
+            if (!name) {
+                alert("モデル名は必須です。");
                 return;
             }
 
-            if (loadedModelsList.some(m => m.id === id)) {
-                alert("そのモデルIDは既にリストに存在します。");
+            if (loadedModelsList.some(m => m.name.toLowerCase() === name.toLowerCase())) {
+                alert("そのモデル名は既に存在します。");
                 return;
             }
 
-            // 配列の先頭に追加 (スプシから取得したデータにマージされる)
-            loadedModelsList.unshift({ id, name, description, imageUrl: "", configJsonUrl: "" });
+            const newModel = { name, description, imageUrl: "", configJsonUrl: "", persona: "", memories: [], strategies: [], history: [] };
+            loadedModelsList.unshift(newModel);
 
-            idField.value = "";
             nameField.value = "";
             descField.value = "";
 
             renderModelGrid();
-            alert(`新モデル「${name}」を追加しました！カードをクリックして開始できます。`);
+            // 初回データ作成を兼ねてスプシへ即同期
+            triggerCloudSave(newModel);
         }
 
-        // モデル選択時のアクションと個別JSONファイルへの自動フック
-        async function selectModel(modelId, modelName, imageUrl, modelJsonUrl) {
-            selectedModelId = modelId;
-            document.getElementById('current-model-title').textContent = `${modelName} (${modelId})`;
-            document.getElementById('current-avatar').src = imageUrl;
+        // スプシから復元された過去のデータごとチャット画面へ遷移
+        function selectModel(model) {
+            selectedModelName = model.name;
+            document.getElementById('current-model-title').textContent = model.name;
+            
+            const safeBaseName = model.name.replace(/[^a-zA-Z0-9]/g, '-');
+            document.getElementById('current-avatar').src = model.imageUrl ? model.imageUrl : `${safeBaseName}.png`;
 
-            // 個別設定用の「モデル名.json」へのフック処理
-            try {
-                const res = await fetch(modelJsonUrl);
-                if (res.ok) {
-                    const modelConfig = await res.json();
-                    console.log("個別モデルのJSON情報を読み込みました:", modelConfig);
-                }
-            } catch (e) {
-                console.log("個別モデルJSONへのフックはスキップされました（未配置など）。");
+            // スプシからロードした各種コンテキスト・過去履歴を復元
+            persona = model.persona || "";
+            memories = model.memories || [];
+            strategies = model.strategies || [];
+            conversationHistory = model.history && model.history.length > 0 ? model.history : [DEFAULT_SYSTEM_PROMPT];
+
+            // チャット画面の再描画
+            const chatBox = document.getElementById("chat-box");
+            chatBox.innerHTML = "";
+            if (conversationHistory.length <= 1) {
+                appendMessage("ai", `こんにちは！「${selectedModelName}」としてチャットが同期されました。`);
+            } else {
+                renderChatFromHistory();
             }
+            
+            updateMemoryUI();
 
-            initChat();
-
-            // 画面切り替え
             document.getElementById('top-view').classList.remove('view-active');
             document.getElementById('chat-view').classList.add('view-active');
         }
 
-        function backToTop() {
-            if (confirm("トップに戻りますか？会話履歴はクリアされます（記憶や戦略は残ります）。")) {
-                document.getElementById('chat-view').classList.remove('view-active');
-                document.getElementById('top-view').classList.add('view-active');
+        // オートセーブ（GASへのPOST送信）
+        async function triggerCloudSave(targetModelData = null) {
+            const statusLabel = document.getElementById("save-status");
+            if (statusLabel) statusLabel.textContent = "⏳ オートセーブ中...";
+
+            // 指定がなければ現在アクティブなチャットの状態を保存オブジェクトにする
+            const saveData = targetModelData ? targetModelData : {
+                name: selectedModelName,
+                persona: persona,
+                memories: memories,
+                strategies: strategies,
+                history: conversationHistory
+            };
+
+            // キャッシュリスト側もリアルタイムに更新
+            const targetIndex = loadedModelsList.findIndex(m => m.name === saveData.name);
+            if (targetIndex !== -1) {
+                loadedModelsList[targetIndex] = { ...loadedModelsList[targetIndex], ...saveData };
             }
-        }
 
-        function initChat() {
-            conversationHistory = [DEFAULT_SYSTEM_PROMPT];
-            document.getElementById("chat-box").innerHTML = "";
-            appendMessage("ai", `接続が完了しました。何かお手伝いできることはありますか？`);
-            updateMemoryUI();
-        }
-
-        function newChat() {
-            if (confirm("現在の会話履歴をクリアしますか？（※右側の記憶コンテキストは保持されます）")) {
-                initChat();
+            try {
+                await fetch(GAS_API_URL, {
+                    method: "POST",
+                    mode: "no-cors", // GASのCORS制約を回避
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(saveData)
+                });
+                if (statusLabel) statusLabel.textContent = "☁️ クラウド同期済み";
+            } catch (e) {
+                if (statusLabel) statusLabel.textContent = "❌ オートセーブ失敗";
             }
         }
 
@@ -332,15 +324,16 @@
             const inputField = document.getElementById("user-input");
             const sendBtn = document.getElementById("send-btn");
             const message = inputField.value.trim();
-            
             if (!message) return;
 
             appendMessage("user", message);
             inputField.value = "";
             sendBtn.disabled = true;
-            sendBtn.textContent = "送信中...";
             
             conversationHistory.push({ role: "user", content: message });
+            
+            // 1. ユーザーが送信したタイミングで即座にスプシにオートセーブ
+            triggerCloudSave();
 
             try {
                 const response = await fetch(WORKER_URL, {
@@ -351,40 +344,37 @@
                         persona: persona,
                         memories: memories,
                         strategies: strategies,
-                        model: selectedModelId 
+                        model: "openai/gpt-oss-120b" // Workerへのバックエンド用識別子は固定、または任意のデフォルト値を送る形にします
                     })
                 });
 
                 const data = await response.json();
-                
                 if (data.error) {
-                    appendMessage("ai", `**エラーが発生しました:** ${data.error}`);
+                    appendMessage("ai", `**エラー:** ${data.error}`);
                     conversationHistory.pop();
                 } else {
                     let aiResponse = data.choices[0].message.content;
-                    
                     extractAndProcessData(aiResponse);
 
-                    // タグ構造のクリーンアップ消去
                     let cleanedResponse = aiResponse
                         .replace(/<persona>[\s\S]*?<\/persona>/gi, '')
                         .replace(/<memory>[\s\S]*?<\/memory>/gi, '')
                         .replace(/<strategy>[\s\S]*?<\/strategy>/gi, '')
                         .trim();
 
-                    if (cleanedResponse === "") {
-                        cleanedResponse = "（コンテキストを更新しました）";
-                    }
+                    if (cleanedResponse === "") cleanedResponse = "（コンテキストを更新しました）";
 
                     appendMessage("ai", cleanedResponse);
                     conversationHistory.push({ role: "assistant", content: cleanedResponse });
+                    
+                    // 2. AIの返答と抽出コンテキストが確定したタイミングで再びオートセーブ
+                    triggerCloudSave();
                 }
             } catch (error) {
                 appendMessage("ai", "**通信エラーが発生しました。**");
                 conversationHistory.pop();
             } finally {
                 sendBtn.disabled = false;
-                sendBtn.textContent = "送信";
                 inputField.focus();
             }
         }
@@ -392,7 +382,6 @@
         function extractAndProcessData(text) {
             const ignorePattern = /^(特になし|なし|変更なし|なし。|特になし。|none|null|undefined|\s*)$/i;
 
-            // 1. Persona
             const personaRegex = /<persona>([\s\S]*?)<\/persona>/g;
             let personaMatch;
             while ((personaMatch = personaRegex.exec(text)) !== null) {
@@ -400,7 +389,6 @@
                 if (content && !ignorePattern.test(content)) persona = content;
             }
 
-            // 2. Memory
             const memoryRegex = /<memory>([\s\S]*?)<\/memory>/g;
             let memoryMatch;
             while ((memoryMatch = memoryRegex.exec(text)) !== null) {
@@ -410,7 +398,6 @@
                 }
             }
 
-            // 3. Strategy
             const strategyRegex = /<strategy>([\s\S]*?)<\/strategy>/g;
             let strategyMatch;
             while ((strategyMatch = strategyRegex.exec(text)) !== null) {
@@ -419,7 +406,6 @@
                     if (!strategies.includes(content)) strategies.push(content);
                 }
             }
-
             updateMemoryUI();
         }
 
@@ -438,66 +424,33 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        function downloadData() {
-            const exportData = { 
-                modelId: selectedModelId,
-                history: conversationHistory, 
-                persona: persona,
-                memories: memories,
-                strategies: strategies 
-            };
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData));
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", `chat_session_${selectedModelId.replace(/\//g, '-')}.json`);
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-        }
-
-        function uploadData(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const loadedData = JSON.parse(e.target.result);
-                    if (loadedData.history) {
-                        conversationHistory = loadedData.history;
-                        persona = loadedData.persona || "";
-                        memories = loadedData.memories || [];
-                        strategies = loadedData.strategies || [];
-                        if (loadedData.modelId) selectedModelId = loadedData.modelId;
-                        
-                        renderChatFromHistory();
-                        updateMemoryUI();
-                    } else {
-                        alert("データ形式が正しくありません。");
-                    }
-                } catch (error) {
-                    alert("ファイルの読み込みに失敗しました。");
-                }
-            };
-            reader.readAsText(file);
-            event.target.value = "";
-        }
-
         function renderChatFromHistory() {
             const chatBox = document.getElementById("chat-box");
             chatBox.innerHTML = "";
             conversationHistory.forEach(msg => {
-                if (msg.role !== "system") {
-                    appendMessage(msg.role === "user" ? "user" : "ai", msg.content);
-                }
+                if (msg.role !== "system") appendMessage(msg.role === "user" ? "user" : "ai", msg.content);
             });
+        }
+
+        function newChat() {
+            if (confirm("現在の会話履歴のみをクリアしますか？（※スプシの記憶コンテキストは保持されます）")) {
+                conversationHistory = [DEFAULT_SYSTEM_PROMPT];
+                document.getElementById("chat-box").innerHTML = "";
+                appendMessage("ai", `履歴をリセットしました。何でも話しかけてください。`);
+                triggerCloudSave();
+            }
+        }
+
+        function backToTop() {
+            document.getElementById('chat-view').classList.remove('view-active');
+            document.getElementById('top-view').classList.add('view-active');
+            loadModels(); // トップに戻る時に最新のスプシ状態をリロード
         }
 
         function handleKeyPress(event) {
             if (event.key === "Enter") sendMessage();
         }
 
-        // 起動時に自動実行
         loadModels();
     </script>
 </body>
