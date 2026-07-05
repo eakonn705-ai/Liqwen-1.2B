@@ -9,84 +9,647 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         html, body {
-            height: 100vh; margin: 0; padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f4f9; display: flex; flex-direction: column; box-sizing: border-box;
+            height: 100vh;
+            font-family: 'Segoe UI', 'Helvetica Neue', Tahoma, Geneva, sans-serif;
+            background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 100%);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
         /* ヘッダー */
         .header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 10px 20px; background-color: #ffffff; border-bottom: 1px solid #ccc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
-        .header h2 { margin: 0; font-size: 1.2rem; }
-        .header-buttons { display: flex; gap: 10px; }
-        
+
+        .header h2 {
+            font-size: 1.4rem;
+            background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
         /* ボタン */
         button {
-            padding: 10px 20px; color: white; border: none; border-radius: 4px;
-            cursor: pointer; font-size: 14px; transition: background-color 0.2s;
+            padding: 10px 20px;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
-        .btn-primary { background-color: #28a745; }
-        .btn-primary:hover { background-color: #218838; }
-        .btn-secondary { background-color: #6c757d; }
-        .btn-secondary:hover { background-color: #5a6268; }
-        .btn-danger { background-color: #dc3545; }
-        .btn-danger:hover { background-color: #bd2130; }
-        button:disabled { background-color: #a5d6a7; cursor: not-allowed; }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: left 0.3s ease;
+            z-index: -1;
+        }
+
+        button:hover::before {
+            left: 0;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 212, 255, 0.5);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.2);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4757 0%, #ff3838 100%);
+            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.3);
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 71, 87, 0.5);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
 
         /* メインコンテナ */
-        .main-container { display: flex; flex-grow: 1; overflow: hidden; }
+        .main-container {
+            display: flex;
+            flex-grow: 1;
+            overflow: hidden;
+            gap: 16px;
+            padding: 16px;
+        }
 
         /* チャットエリア */
         .chat-container {
-            flex-grow: 3; display: flex; flex-direction: column;
-            background-color: #ffffff; border-right: 1px solid #ccc;
+            flex-grow: 3;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%);
+            border-radius: 12px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
         }
-        #chat-box { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
 
-        /* 三層管理サイドパネル */
+        #chat-box {
+            flex-grow: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scroll-behavior: smooth;
+        }
+
+        #chat-box::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #chat-box::-webkit-scrollbar-track {
+            background: rgba(0, 212, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        #chat-box::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
+            border-radius: 4px;
+        }
+
+        #chat-box::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #00e5ff 0%, #00b8ff 100%);
+        }
+
+        /* メモリパネル（デスクトップ用） */
         .memory-panel {
-            flex-grow: 1; min-width: 280px; max-width: 380px;
-            background-color: #f8f9fa; padding: 20px; overflow-y: auto; box-sizing: border-box;
-            display: flex; flex-direction: column; gap: 25px;
+            flex-grow: 1;
+            min-width: 320px;
+            max-width: 420px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%);
+            padding: 24px;
+            overflow-y: auto;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
         }
-        .memory-section h3 { margin-top: 0; font-size: 1.05rem; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 5px; margin-bottom: 10px; }
-        
-        #persona-display { font-size: 14px; color: #495057; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #e3e6f0; line-height: 1.5; min-height: 40px; }
-        .data-list { padding-left: 20px; font-size: 14px; color: #495057; line-height: 1.6; margin: 0; }
 
-        /* 吹き出し */
-        .message { padding: 12px 16px; border-radius: 15px; max-width: 75%; line-height: 1.6; word-wrap: break-word; }
-        .user-message { background-color: #007bff; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
-        .ai-message { background-color: #e9ecef; color: #333; align-self: flex-start; border-bottom-left-radius: 2px; }
+        .memory-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .memory-panel::-webkit-scrollbar-track {
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .memory-panel::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
+            border-radius: 3px;
+        }
+
+        .memory-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .memory-section h3 {
+            margin: 0;
+            font-size: 1.05rem;
+            color: #00d4ff;
+            border-bottom: 2px solid #00d4ff;
+            padding-bottom: 8px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        #persona-display {
+            font-size: 14px;
+            color: #ccc;
+            background: rgba(0, 212, 255, 0.1);
+            padding: 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            line-height: 1.6;
+            min-height: 50px;
+            border-left: 4px solid #00d4ff;
+        }
+
+        .data-list {
+            padding-left: 20px;
+            font-size: 14px;
+            color: #ccc;
+            line-height: 1.8;
+            margin: 0;
+            list-style: none;
+        }
+
+        .data-list li {
+            position: relative;
+            padding-left: 12px;
+            margin-bottom: 8px;
+        }
+
+        .data-list li:before {
+            content: '▸';
+            position: absolute;
+            left: 0;
+            color: #00d4ff;
+            font-weight: bold;
+        }
+
+        .data-list li:last-child {
+            margin-bottom: 0;
+        }
+
+        /* メッセージ吹き出し */
+        .message {
+            padding: 14px 18px;
+            border-radius: 16px;
+            max-width: 75%;
+            line-height: 1.6;
+            word-wrap: break-word;
+            animation: messageSlide 0.3s ease;
+        }
+
+        @keyframes messageSlide {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .user-message {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
+            color: #fff;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
+        }
+
+        .ai-message {
+            background: rgba(0, 212, 255, 0.1);
+            color: #ccc;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
 
         /* Markdown スタイル */
-        .message p { margin: 0 0 10px 0; }
-        .message p:last-child { margin: 0; }
-        .message ul, .message ol { margin: 0 0 10px 20px; padding: 0; }
-        .message code { background-color: rgba(0, 0, 0, 0.08); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
-        .user-message code { background-color: rgba(255, 255, 255, 0.2); }
-        .message pre { background-color: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 8px; overflow-x: auto; margin: 10px 0; }
-        .message pre code { background-color: transparent; padding: 0; color: inherit; }
-        .message table { border-collapse: collapse; width: 100%; margin-bottom: 10px; }
-        .message th, .message td { border: 1px solid #ccc; padding: 6px 10px; }
+        .message p {
+            margin: 0 0 12px 0;
+        }
+
+        .message p:last-child {
+            margin: 0;
+        }
+
+        .message ul,
+        .message ol {
+            margin: 0 0 12px 20px;
+            padding: 0;
+        }
+
+        .message li {
+            margin-bottom: 6px;
+        }
+
+        .message code {
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #00d4ff;
+        }
+
+        .user-message code {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        .message pre {
+            background-color: #0f0f1e;
+            color: #00d4ff;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 12px 0;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .message pre code {
+            background-color: transparent;
+            padding: 0;
+            color: inherit;
+        }
+
+        .message table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 12px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .message th,
+        .message td {
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .message th {
+            background: rgba(0, 212, 255, 0.1);
+            color: #00d4ff;
+            font-weight: 600;
+        }
 
         /* 入力エリア */
-        .input-area { display: flex; gap: 10px; padding: 15px 20px; background-color: #f4f4f9; border-top: 1px solid #ccc; }
-        #user-input { flex-grow: 1; padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+        .input-area {
+            display: flex;
+            gap: 12px;
+            padding: 16px 24px;
+            background: linear-gradient(135deg, #16213e 0%, #0f0f1e 100%);
+            border-top: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        #user-input {
+            flex-grow: 1;
+            padding: 12px 16px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            font-size: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            transition: all 0.3s ease;
+        }
+
+        #user-input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        #user-input:focus {
+            outline: none;
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.05);
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+        }
+
+        /* スマホ用モーダル */
+        .memory-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            overflow-y: auto;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .memory-modal.show {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .memory-modal-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 12px 12px 0 0;
+            padding: 20px;
+            margin-top: auto;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+            }
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        .memory-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .memory-modal-header h2 {
+            color: #00d4ff;
+            font-size: 1.2rem;
+            margin: 0;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            color: #00d4ff;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .close-modal:hover {
+            background: rgba(0, 212, 255, 0.2);
+        }
+
+        .memory-modal-sections {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 1024px) {
+            .main-container {
+                flex-direction: column;
+            }
+
+            .memory-panel {
+                display: none;
+            }
+
+            .message {
+                max-width: 90%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 12px;
+                padding: 12px 16px;
+            }
+
+            .header h2 {
+                font-size: 1.1rem;
+            }
+
+            .header-buttons {
+                width: 100%;
+                gap: 8px;
+            }
+
+            .header-buttons button {
+                flex: 1;
+                padding: 8px 12px;
+                font-size: 12px;
+                min-width: 0;
+            }
+
+            .main-container {
+                padding: 8px;
+                gap: 8px;
+            }
+
+            .memory-panel {
+                display: none;
+            }
+
+            .chat-container {
+                border-radius: 8px;
+            }
+
+            #chat-box {
+                padding: 16px;
+                gap: 12px;
+            }
+
+            .message {
+                max-width: 85%;
+                padding: 12px 14px;
+                font-size: 14px;
+            }
+
+            .input-area {
+                padding: 12px 16px;
+                gap: 8px;
+            }
+
+            #user-input {
+                padding: 10px 12px;
+                font-size: 14px;
+            }
+
+            .memory-modal-content {
+                max-height: 90vh;
+                border-radius: 16px 16px 0 0;
+                padding: 16px;
+            }
+
+            .memory-modal-header {
+                margin-bottom: 16px;
+            }
+
+            .memory-modal-header h2 {
+                font-size: 1.1rem;
+            }
+
+            .memory-modal-sections {
+                gap: 16px;
+            }
+
+            .memory-section h3 {
+                font-size: 1rem;
+            }
+
+            #persona-display {
+                font-size: 13px;
+                padding: 12px;
+                min-height: 45px;
+            }
+
+            .data-list {
+                font-size: 13px;
+                line-height: 1.6;
+            }
+
+            .data-list li {
+                margin-bottom: 6px;
+            }
+        }
+
+        /* 小さいスマホ */
+        @media (max-width: 480px) {
+            .header {
+                padding: 12px 12px;
+                gap: 10px;
+            }
+
+            .header h2 {
+                font-size: 1rem;
+            }
+
+            .header-buttons {
+                gap: 6px;
+            }
+
+            .header-buttons button {
+                padding: 6px 10px;
+                font-size: 11px;
+            }
+
+            .main-container {
+                padding: 4px;
+                gap: 4px;
+            }
+
+            #chat-box {
+                padding: 12px;
+                gap: 10px;
+            }
+
+            .message {
+                max-width: 88%;
+                padding: 10px 12px;
+                font-size: 13px;
+                border-radius: 12px;
+            }
+
+            .input-area {
+                padding: 8px 12px;
+                gap: 6px;
+            }
+
+            #user-input {
+                padding: 8px 10px;
+                font-size: 13px;
+            }
+
+            button {
+                padding: 8px 16px;
+                font-size: 12px;
+            }
+        }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h2>Groq Chat (openai/gpt-oss-120b)</h2>
+        <h2>🚀 Groq AI Chat</h2>
         <div class="header-buttons">
-            <button class="btn-danger" onclick="newChat()">新しいチャット</button>
-            <button class="btn-secondary" onclick="downloadData()">履歴＆記憶を保存</button>
+            <button class="btn-danger" onclick="newChat()">新規</button>
+            <button class="btn-secondary" onclick="downloadData()">保存</button>
             <input type="file" id="file-upload" accept=".json" style="display: none;" onchange="uploadData(event)">
-            <button class="btn-secondary" onclick="document.getElementById('file-upload').click()">データを復元</button>
+            <button class="btn-secondary" onclick="document.getElementById('file-upload').click()">復元</button>
+            <button class="btn-primary" id="info-btn" onclick="openMemoryModal()" style="display: none;">ℹ️ 情報</button>
         </div>
     </div>
 
@@ -100,17 +663,17 @@
             </div>
         </div>
 
-        <!-- 3層管理パネル -->
-        <div class="memory-panel">
+        <!-- デスクトップ用 3層管理パネル -->
+        <div class="memory-panel" id="desktop-memory-panel">
             <!-- 1. Persona -->
             <div class="memory-section">
-                <h3>1. 現在の人格 (Persona)</h3>
+                <h3>🎭 現在の人格 (Persona)</h3>
                 <div id="persona-display">デフォルト設定（優秀なAIアシスタント）</div>
             </div>
             
             <!-- 2. Memory -->
             <div class="memory-section">
-                <h3>2. 現在の記憶 (Memory)</h3>
+                <h3>💾 現在の記憶 (Memory)</h3>
                 <ul id="memory-list" class="data-list">
                     <li>（記憶された事実はありません）</li>
                 </ul>
@@ -118,10 +681,43 @@
 
             <!-- 3. Strategy -->
             <div class="memory-section">
-                <h3>3. 現在の戦略・教訓 (Strategy)</h3>
+                <h3>⚡ 現在の戦略・教訓 (Strategy)</h3>
                 <ul id="strategy-list" class="data-list">
                     <li>（蓄積された戦略はありません）</li>
                 </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- スマホ用 モーダル -->
+    <div class="memory-modal" id="memory-modal">
+        <div class="memory-modal-content">
+            <div class="memory-modal-header">
+                <h2>📋 AI情報パネル</h2>
+                <button class="close-modal" onclick="closeMemoryModal()">✕</button>
+            </div>
+            <div class="memory-modal-sections">
+                <!-- 1. Persona -->
+                <div class="memory-section">
+                    <h3>🎭 現在の人格 (Persona)</h3>
+                    <div id="persona-display-mobile">デフォルト設定（優秀なAIアシスタント）</div>
+                </div>
+                
+                <!-- 2. Memory -->
+                <div class="memory-section">
+                    <h3>💾 現在の記憶 (Memory)</h3>
+                    <ul id="memory-list-mobile" class="data-list">
+                        <li>（記憶された事実はありません）</li>
+                    </ul>
+                </div>
+
+                <!-- 3. Strategy -->
+                <div class="memory-section">
+                    <h3>⚡ 現在の戦略・教訓 (Strategy)</h3>
+                    <ul id="strategy-list-mobile" class="data-list">
+                        <li>（蓄積された戦略はありません）</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -133,22 +729,43 @@
         let conversationHistory = [];
         let persona = "";
         let memories = [];
-        let strategies = []; // 追加：AIのコツ・教訓
+        let strategies = [];
+        let isMobileView = false;
 
         const DEFAULT_SYSTEM_PROMPT = { role: "system", content: "あなたは優秀なAIアシスタントです。回答はMarkdown記法を用いて見やすく構造化してください。" };
+
+        // デバイス判定
+        function checkMobileView() {
+            const desktopPanel = document.getElementById("desktop-memory-panel");
+            const infoBtn = document.getElementById("info-btn");
+            const isMobile = window.innerWidth <= 1024;
+            
+            isMobileView = isMobile;
+            if (isMobile) {
+                desktopPanel.style.display = "none";
+                infoBtn.style.display = "block";
+            } else {
+                desktopPanel.style.display = "flex";
+                infoBtn.style.display = "none";
+                closeMemoryModal();
+            }
+        }
+
+        window.addEventListener("resize", checkMobileView);
 
         function initChat() {
             conversationHistory = [DEFAULT_SYSTEM_PROMPT];
             document.getElementById("chat-box").innerHTML = "";
-            appendMessage("ai", "こんにちは！何かお手伝いできることはありますか？");
+            appendMessage("ai", "👋 こんにちは！Groq AI Chat へようこそ。\n\n何かお手伝いできることはありますか？");
             updateMemoryUI();
+            checkMobileView();
         }
 
         function newChat() {
-            if (confirm("現在のチャット履歴をクリアして新しい会話を始めますか？（※右側の「人格」「記憶」「戦略」はすべて維持されます）")) {
+            if (confirm("現在のチャット履歴をクリアして新しい会話を始めますか？（※「人格」「記憶」「戦略」はすべて維持されます）")) {
                 conversationHistory = [DEFAULT_SYSTEM_PROMPT];
                 document.getElementById("chat-box").innerHTML = "";
-                appendMessage("ai", "新しいチャットを開始しました。これまでのコンテキストを引き継いで会話できます。");
+                appendMessage("ai", "✨ 新しいチャットを開始しました。これまでのコンテキストを引き継いで会話できます。");
             }
         }
 
@@ -174,37 +791,35 @@
                         messages: conversationHistory,
                         persona: persona,
                         memories: memories,
-                        strategies: strategies // パラメータ送信
+                        strategies: strategies
                     })
                 });
 
                 const data = await response.json();
                 
                 if (data.error) {
-                    appendMessage("ai", `**エラーが発生しました:** ${data.error} \n\n詳細: ${data.details || ""}`);
+                    appendMessage("ai", `**⚠️ エラーが発生しました:** ${data.error} \n\n詳細: ${data.details || ""}`);
                     conversationHistory.pop();
                 } else {
                     let aiResponse = data.choices[0].message.content;
                     
-                    // レスポンスから全3種類のタグを抽出・パース
                     extractAndProcessData(aiResponse);
 
-                    // --- 3つ全てのタグ（中身を含む）をUIおよび履歴から完全に消去 ---
                     let cleanedResponse = aiResponse
                         .replace(/<persona>[\s\S]*?<\/persona>/gi, '')
                         .replace(/<memory>[\s\S]*?<\/memory>/gi, '')
-                        .replace(/<strategy>[\s\S]*?<\/strategy>/gi, '') // 新規追加
+                        .replace(/<strategy>[\s\S]*?<\/strategy>/gi, '')
                         .trim();
 
                     if (cleanedResponse === "") {
-                        cleanedResponse = "（設定を更新しました）";
+                        cleanedResponse = "✅ （設定を更新しました）";
                     }
 
                     appendMessage("ai", cleanedResponse);
                     conversationHistory.push({ role: "assistant", content: cleanedResponse });
                 }
             } catch (error) {
-                appendMessage("ai", "**通信エラーが発生しました。**");
+                appendMessage("ai", "**⚠️ 通信エラーが発生しました。**");
                 conversationHistory.pop();
             } finally {
                 sendBtn.disabled = false;
@@ -213,7 +828,6 @@
             }
         }
 
-        // --- 3種類のタグ抽出と不適切ワードフィルタリング ---
         function extractAndProcessData(text) {
             const ignorePattern = /^(特になし|なし|変更なし|なし。|特になし。|none|null|undefined|\s*)$/i;
 
@@ -254,21 +868,32 @@
             updateMemoryUI();
         }
 
-        // --- 全UI（3セクション）の再描画 ---
         function updateMemoryUI() {
-            // 人格
+            // デスクトップ用
             const personaDisplay = document.getElementById("persona-display");
             personaDisplay.textContent = persona ? persona : "デフォルト設定（優秀なAIアシスタント）";
 
-            // 記憶
             const memoryContainer = document.getElementById("memory-list");
             memoryContainer.innerHTML = memories.length === 0 
                 ? "<li>（記憶された事実はありません）</li>" 
                 : memories.map(m => `<li>${m}</li>`).join("");
 
-            // 戦略
             const strategyContainer = document.getElementById("strategy-list");
             strategyContainer.innerHTML = strategies.length === 0 
+                ? "<li>（蓄積された戦略はありません）</li>" 
+                : strategies.map(s => `<li>${s}</li>`).join("");
+
+            // スマホ用
+            const personaDisplayMobile = document.getElementById("persona-display-mobile");
+            personaDisplayMobile.textContent = persona ? persona : "デフォルト設定（優秀なAIアシスタント）";
+
+            const memoryContainerMobile = document.getElementById("memory-list-mobile");
+            memoryContainerMobile.innerHTML = memories.length === 0 
+                ? "<li>（記憶された事実はありません）</li>" 
+                : memories.map(m => `<li>${m}</li>`).join("");
+
+            const strategyContainerMobile = document.getElementById("strategy-list-mobile");
+            strategyContainerMobile.innerHTML = strategies.length === 0 
                 ? "<li>（蓄積された戦略はありません）</li>" 
                 : strategies.map(s => `<li>${s}</li>`).join("");
         }
@@ -282,7 +907,6 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // --- データのダウロード（4つの状態を一体化） ---
         function downloadData() {
             if (conversationHistory.length <= 1 && !persona && memories.length === 0 && strategies.length === 0) {
                 alert("ダウンロードするデータがありません。");
@@ -292,7 +916,7 @@
                 history: conversationHistory, 
                 persona: persona,
                 memories: memories,
-                strategies: strategies // パッケージ化
+                strategies: strategies
             };
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData));
             const downloadAnchorNode = document.createElement('a');
@@ -303,7 +927,6 @@
             downloadAnchorNode.remove();
         }
 
-        // --- データのアップロード（一括解凍） ---
         function uploadData(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -316,7 +939,7 @@
                         conversationHistory = loadedData.history;
                         persona = loadedData.persona || "";
                         memories = loadedData.memories || [];
-                        strategies = loadedData.strategies || []; // 解凍
+                        strategies = loadedData.strategies || [];
                         
                         renderChatFromHistory();
                         updateMemoryUI();
@@ -346,6 +969,26 @@
                 sendMessage();
             }
         }
+
+        // モーダル操作
+        function openMemoryModal() {
+            const modal = document.getElementById("memory-modal");
+            modal.classList.add("show");
+            document.body.style.overflow = "hidden";
+        }
+
+        function closeMemoryModal() {
+            const modal = document.getElementById("memory-modal");
+            modal.classList.remove("show");
+            document.body.style.overflow = "auto";
+        }
+
+        // モーダル背景クリックで閉じる
+        document.getElementById("memory-modal").addEventListener("click", function(e) {
+            if (e.target === this) {
+                closeMemoryModal();
+            }
+        });
 
         initChat();
     </script>
