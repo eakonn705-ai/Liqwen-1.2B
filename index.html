@@ -3,27 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Groq AI Chat with Triple Memory</title>
+    <title>AI Chat Station with Triple Context</title>
     
-    <!-- marked.js の読み込み (Markdown対応) -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <style>
         html, body {
             height: 100vh; margin: 0; padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f4f9; display: flex; flex-direction: column; box-sizing: border-box;
+            background-color: #f4f4f9; color: #333; box-sizing: border-box;
         }
 
-        /* ヘッダー */
-        .header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 10px 20px; background-color: #ffffff; border-bottom: 1px solid #ccc;
-        }
-        .header h2 { margin: 0; font-size: 1.2rem; }
-        .header-buttons { display: flex; gap: 10px; }
-        
-        /* ボタン */
+        /* 共通ボタン */
         button {
             padding: 10px 20px; color: white; border: none; border-radius: 4px;
             cursor: pointer; font-size: 14px; transition: background-color 0.2s;
@@ -36,24 +27,56 @@
         .btn-danger:hover { background-color: #bd2130; }
         button:disabled { background-color: #a5d6a7; cursor: not-allowed; }
 
-        /* メインコンテナ */
-        .main-container { display: flex; flex-grow: 1; overflow: hidden; }
+        /* 画面表示切り替え */
+        .view-section { display: none; height: 100vh; flex-direction: column; }
+        .view-active { display: flex; }
 
-        /* チャットエリア */
-        .chat-container {
-            flex-grow: 3; display: flex; flex-direction: column;
-            background-color: #ffffff; border-right: 1px solid #ccc;
+        /* --- 1. トップページ（モデル選択） --- */
+        .top-container {
+            max-width: 1000px; margin: 0 auto; padding: 40px 20px; text-align: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh;
         }
+        .top-container h1 { font-size: 2.5rem; margin-bottom: 10px; color: #007bff; }
+        .top-container p { color: #666; margin-bottom: 40px; }
+        
+        .grid-container {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px; width: 100%; max-width: 900px;
+        }
+        .model-card {
+            background: #ffffff; border: 1px solid #e3e6f0; border-radius: 12px;
+            padding: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s; text-align: center;
+        }
+        .model-card:hover { transform: translateY(-5px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); border-color: #007bff; }
+        .model-avatar {
+            width: 100px; height: 100px; border-radius: 50%; object-fit: cover;
+            margin-bottom: 15px; background-color: #e9ecef; border: 3px solid #f8f9fa;
+        }
+        .model-card h3 { margin: 10px 0; font-size: 1.3rem; color: #222; }
+        .model-card p { font-size: 14px; color: #6c757d; margin: 0; line-height: 1.4; }
+
+        /* --- 2. チャットページ --- */
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 20px; background-color: #ffffff; border-bottom: 1px solid #ccc;
+        }
+        .header-title-area { display: flex; align-items: center; gap: 12px; }
+        .header-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+        .header h2 { margin: 0; font-size: 1.2rem; }
+        .header-buttons { display: flex; gap: 10px; }
+        
+        .main-container { display: flex; flex-grow: 1; overflow: hidden; }
+        .chat-container { flex-grow: 3; display: flex; flex-direction: column; background-color: #ffffff; border-right: 1px solid #ccc; }
         #chat-box { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
 
-        /* 三層管理サイドパネル */
+        /* 3層管理サイドパネル */
         .memory-panel {
             flex-grow: 1; min-width: 280px; max-width: 380px;
             background-color: #f8f9fa; padding: 20px; overflow-y: auto; box-sizing: border-box;
             display: flex; flex-direction: column; gap: 25px;
         }
         .memory-section h3 { margin-top: 0; font-size: 1.05rem; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 5px; margin-bottom: 10px; }
-        
         #persona-display { font-size: 14px; color: #495057; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #e3e6f0; line-height: 1.5; min-height: 40px; }
         .data-list { padding-left: 20px; font-size: 14px; color: #495057; line-height: 1.6; margin: 0; }
 
@@ -80,75 +103,147 @@
 </head>
 <body>
 
-    <div class="header">
-        <h2>Groq Chat (openai/gpt-oss-120b)</h2>
-        <div class="header-buttons">
-            <button class="btn-danger" onclick="newChat()">新しいチャット</button>
-            <button class="btn-secondary" onclick="downloadData()">履歴＆記憶を保存</button>
-            <input type="file" id="file-upload" accept=".json" style="display: none;" onchange="uploadData(event)">
-            <button class="btn-secondary" onclick="document.getElementById('file-upload').click()">データを復元</button>
+    <div id="top-view" class="view-section view-active">
+        <div class="top-container">
+            <h1>AI Chat Station</h1>
+            <p>対話するAIモデルを選択してください</p>
+            <div id="model-grid" class="grid-container">
+                </div>
         </div>
     </div>
 
-    <div class="main-container">
-        <!-- チャット画面 -->
-        <div class="chat-container">
-            <div id="chat-box"></div>
-            <div class="input-area">
-                <input type="text" id="user-input" placeholder="メッセージを入力..." onkeypress="handleKeyPress(event)">
-                <button id="send-btn" class="btn-primary" onclick="sendMessage()">送信</button>
+
+    <div id="chat-view" class="view-section">
+        <div class="header">
+            <div class="header-title-area">
+                <img id="current-avatar" class="header-avatar" src="" alt="Avatar">
+                <h2 id="current-model-title">Groq Chat</h2>
+            </div>
+            <div class="header-buttons">
+                <button class="btn-secondary" onclick="backToTop()">モデルを変更</button>
+                <button class="btn-danger" onclick="newChat()">クリア</button>
+                <button class="btn-secondary" onclick="downloadData()">保存</button>
+                <input type="file" id="file-upload" accept=".json" style="display: none;" onchange="uploadData(event)">
+                <button class="btn-secondary" onclick="document.getElementById('file-upload').click()">復元</button>
             </div>
         </div>
 
-        <!-- 3層管理パネル -->
-        <div class="memory-panel">
-            <!-- 1. Persona -->
-            <div class="memory-section">
-                <h3>1. 現在の人格 (Persona)</h3>
-                <div id="persona-display">デフォルト設定（優秀なAIアシスタント）</div>
-            </div>
-            
-            <!-- 2. Memory -->
-            <div class="memory-section">
-                <h3>2. 現在の記憶 (Memory)</h3>
-                <ul id="memory-list" class="data-list">
-                    <li>（記憶された事実はありません）</li>
-                </ul>
+        <div class="main-container">
+            <div class="chat-container">
+                <div id="chat-box"></div>
+                <div class="input-area">
+                    <input type="text" id="user-input" placeholder="メッセージを入力..." onkeypress="handleKeyPress(event)">
+                    <button id="send-btn" class="btn-primary" onclick="sendMessage()">送信</button>
+                </div>
             </div>
 
-            <!-- 3. Strategy -->
-            <div class="memory-section">
-                <h3>3. 現在の戦略・教訓 (Strategy)</h3>
-                <ul id="strategy-list" class="data-list">
-                    <li>（蓄積された戦略はありません）</li>
-                </ul>
+            <div class="memory-panel">
+                <div class="memory-section">
+                    <h3>1. 現在の人格 (Persona)</h3>
+                    <div id="persona-display">デフォルト設定</div>
+                </div>
+                <div class="memory-section">
+                    <h3>2. 現在の記憶 (Memory)</h3>
+                    <ul id="memory-list" class="data-list">
+                        <li>（記憶された事実はありません）</li>
+                    </ul>
+                </div>
+                <div class="memory-section">
+                    <h3>3. 現在の戦略・教訓 (Strategy)</h3>
+                    <ul id="strategy-list" class="data-list">
+                        <li>（蓄積された戦略はありません）</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // 【重要】ここにデプロイしたCloudflare WorkerのURLを入力してください
+        // 【重要】ご自身のCloudflare WorkerのURLをここに入力してください
         const WORKER_URL = "https://curly-bird-8641.18-kota-shobun.workers.dev/";
         
+        let selectedModelId = ""; 
         let conversationHistory = [];
         let persona = "";
         let memories = [];
-        let strategies = []; // 追加：AIのコツ・教訓
+        let strategies = [];
 
         const DEFAULT_SYSTEM_PROMPT = { role: "system", content: "あなたは優秀なAIアシスタントです。回答はMarkdown記法を用いて見やすく構造化してください。" };
+
+        // 起動時にmodels.jsonを自動ロードし、フォルダ階層のパスを構築
+        async function loadModels() {
+            try {
+                const response = await fetch('models.json');
+                const models = await response.json();
+                const grid = document.getElementById('model-grid');
+                grid.innerHTML = "";
+
+                models.forEach(model => {
+                    // パスエラーを防ぐためスラッシュをハイフンに置換 (例: "openai/gpt-oss-120b" -> "openai-gpt-oss-120b")
+                    const safeBaseName = model.id.replace(/\//g, '-');
+                    
+                    // 各フォルダ内のファイルパスを設定
+                    const imageUrl = `images/${safeBaseName}.png`;
+                    const modelJsonUrl = `models/${safeBaseName}.json`;
+
+                    const card = document.createElement('div');
+                    card.className = 'model-card';
+                    card.onclick = () => selectModel(model.id, model.name, imageUrl, modelJsonUrl);
+
+                    card.innerHTML = `
+                        <img class="model-avatar" src="${imageUrl}" onerror="this.src='https://via.placeholder.com/100?text=AI'" alt="${model.name}">
+                        <h3>${model.name}</h3>
+                        <p>${model.description}</p>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (error) {
+                document.getElementById('model-grid').innerHTML = "<p>models.json の読み込みに失敗しました。構成を確認してください。</p>";
+            }
+        }
+
+        // モデル選択時のアクションと個別JSONファイルへの自動フック
+        async function selectModel(modelId, modelName, imageUrl, modelJsonUrl) {
+            selectedModelId = modelId;
+            document.getElementById('current-model-title').textContent = `${modelName} (${modelId})`;
+            document.getElementById('current-avatar').src = imageUrl;
+
+            // 個別の「models/モデル名.json」があれば自動でフックを試みる（設定拡張用）
+            try {
+                const res = await fetch(modelJsonUrl);
+                if (res.ok) {
+                    const modelConfig = await res.json();
+                    console.log("個別モデルのJSON構成情報を読み込みました:", modelConfig);
+                }
+            } catch (e) {
+                console.log("個別モデルJSONへのフックはスキップされました。");
+            }
+
+            // チャットデータの初期化
+            initChat();
+
+            // 画面切り替え
+            document.getElementById('top-view').classList.remove('view-active');
+            document.getElementById('chat-view').classList.add('view-active');
+        }
+
+        function backToTop() {
+            if (confirm("トップに戻りますか？会話履歴はクリアされます（記憶や戦略は残ります）。")) {
+                document.getElementById('chat-view').classList.remove('view-active');
+                document.getElementById('top-view').classList.add('view-active');
+            }
+        }
 
         function initChat() {
             conversationHistory = [DEFAULT_SYSTEM_PROMPT];
             document.getElementById("chat-box").innerHTML = "";
-            appendMessage("ai", "こんにちは！何かお手伝いできることはありますか？");
+            appendMessage("ai", `接続が完了しました。何かお手伝いできることはありますか？`);
             updateMemoryUI();
         }
 
         function newChat() {
-            if (confirm("現在のチャット履歴をクリアして新しい会話を始めますか？（※右側の「人格」「記憶」「戦略」はすべて維持されます）")) {
-                conversationHistory = [DEFAULT_SYSTEM_PROMPT];
-                document.getElementById("chat-box").innerHTML = "";
-                appendMessage("ai", "新しいチャットを開始しました。これまでのコンテキストを引き継いで会話できます。");
+            if (confirm("現在の会話履歴をクリアしますか？（※右側の記憶コンテキストは保持されます）")) {
+                initChat();
             }
         }
 
@@ -174,30 +269,30 @@
                         messages: conversationHistory,
                         persona: persona,
                         memories: memories,
-                        strategies: strategies // パラメータ送信
+                        strategies: strategies,
+                        model: selectedModelId 
                     })
                 });
 
                 const data = await response.json();
                 
                 if (data.error) {
-                    appendMessage("ai", `**エラーが発生しました:** ${data.error} \n\n詳細: ${data.details || ""}`);
+                    appendMessage("ai", `**エラーが発生しました:** ${data.error}`);
                     conversationHistory.pop();
                 } else {
                     let aiResponse = data.choices[0].message.content;
                     
-                    // レスポンスから全3種類のタグを抽出・パース
                     extractAndProcessData(aiResponse);
 
-                    // --- 3つ全てのタグ（中身を含む）をUIおよび履歴から完全に消去 ---
+                    // 画面表示・履歴保存の前に3つ全てのタグ構造（中身含む）を完全に消去
                     let cleanedResponse = aiResponse
                         .replace(/<persona>[\s\S]*?<\/persona>/gi, '')
                         .replace(/<memory>[\s\S]*?<\/memory>/gi, '')
-                        .replace(/<strategy>[\s\S]*?<\/strategy>/gi, '') // 新規追加
+                        .replace(/<strategy>[\s\S]*?<\/strategy>/gi, '')
                         .trim();
 
                     if (cleanedResponse === "") {
-                        cleanedResponse = "（設定を更新しました）";
+                        cleanedResponse = "（コンテキストを更新しました）";
                     }
 
                     appendMessage("ai", cleanedResponse);
@@ -213,7 +308,7 @@
             }
         }
 
-        // --- 3種類のタグ抽出と不適切ワードフィルタリング ---
+        // 不適切ワード（特になし等）のブロックを施したパース処理
         function extractAndProcessData(text) {
             const ignorePattern = /^(特になし|なし|変更なし|なし。|特になし。|none|null|undefined|\s*)$/i;
 
@@ -222,9 +317,7 @@
             let personaMatch;
             while ((personaMatch = personaRegex.exec(text)) !== null) {
                 const content = personaMatch[1].trim();
-                if (content && !ignorePattern.test(content)) {
-                    persona = content;
-                }
+                if (content && !ignorePattern.test(content)) persona = content;
             }
 
             // 2. Memory
@@ -233,9 +326,7 @@
             while ((memoryMatch = memoryRegex.exec(text)) !== null) {
                 const content = memoryMatch[1].trim();
                 if (content && !ignorePattern.test(content)) {
-                    if (!memories.includes(content)) {
-                        memories.push(content);
-                    }
+                    if (!memories.includes(content)) memories.push(content);
                 }
             }
 
@@ -245,32 +336,17 @@
             while ((strategyMatch = strategyRegex.exec(text)) !== null) {
                 const content = strategyMatch[1].trim();
                 if (content && !ignorePattern.test(content)) {
-                    if (!strategies.includes(content)) {
-                        strategies.push(content);
-                    }
+                    if (!strategies.includes(content)) strategies.push(content);
                 }
             }
 
             updateMemoryUI();
         }
 
-        // --- 全UI（3セクション）の再描画 ---
         function updateMemoryUI() {
-            // 人格
-            const personaDisplay = document.getElementById("persona-display");
-            personaDisplay.textContent = persona ? persona : "デフォルト設定（優秀なAIアシスタント）";
-
-            // 記憶
-            const memoryContainer = document.getElementById("memory-list");
-            memoryContainer.innerHTML = memories.length === 0 
-                ? "<li>（記憶された事実はありません）</li>" 
-                : memories.map(m => `<li>${m}</li>`).join("");
-
-            // 戦略
-            const strategyContainer = document.getElementById("strategy-list");
-            strategyContainer.innerHTML = strategies.length === 0 
-                ? "<li>（蓄積された戦略はありません）</li>" 
-                : strategies.map(s => `<li>${s}</li>`).join("");
+            document.getElementById("persona-display").textContent = persona ? persona : "デフォルト設定";
+            document.getElementById("memory-list").innerHTML = memories.length === 0 ? "<li>（なし）</li>" : memories.map(m => `<li>${m}</li>`).join("");
+            document.getElementById("strategy-list").innerHTML = strategies.length === 0 ? "<li>（なし）</li>" : strategies.map(s => `<li>${s}</li>`).join("");
         }
 
         function appendMessage(role, text) {
@@ -282,28 +358,25 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // --- データのダウロード（4つの状態を一体化） ---
+        // すべての記憶と選択モデル情報を同じ形式で一括保存
         function downloadData() {
-            if (conversationHistory.length <= 1 && !persona && memories.length === 0 && strategies.length === 0) {
-                alert("ダウンロードするデータがありません。");
-                return;
-            }
             const exportData = { 
+                modelId: selectedModelId,
                 history: conversationHistory, 
                 persona: persona,
                 memories: memories,
-                strategies: strategies // パッケージ化
+                strategies: strategies 
             };
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData));
             const downloadAnchorNode = document.createElement('a');
             downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", "chat_session_complete.json");
+            downloadAnchorNode.setAttribute("download", `chat_session_${selectedModelId.replace(/\//g, '-')}.json`);
             document.body.appendChild(downloadAnchorNode);
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
         }
 
-        // --- データのアップロード（一括解凍） ---
+        // 一括復元
         function uploadData(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -316,12 +389,13 @@
                         conversationHistory = loadedData.history;
                         persona = loadedData.persona || "";
                         memories = loadedData.memories || [];
-                        strategies = loadedData.strategies || []; // 解凍
+                        strategies = loadedData.strategies || [];
+                        if (loadedData.modelId) selectedModelId = loadedData.modelId;
                         
                         renderChatFromHistory();
                         updateMemoryUI();
                     } else {
-                        alert("無効なデータ形式です。");
+                        alert("データ形式が正しくありません。");
                     }
                 } catch (error) {
                     alert("ファイルの読み込みに失敗しました。");
@@ -342,12 +416,11 @@
         }
 
         function handleKeyPress(event) {
-            if (event.key === "Enter") {
-                sendMessage();
-            }
+            if (event.key === "Enter") sendMessage();
         }
 
-        initChat();
+        // 起動時に自動実行
+        loadModels();
     </script>
 </body>
 </html>
