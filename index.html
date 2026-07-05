@@ -31,13 +31,25 @@
         .view-section { display: none; height: 100vh; flex-direction: column; }
         .view-active { display: flex; }
 
-        /* --- 1. トップページ（モデル選択） --- */
+        /* --- 1. トップページ（モデル選択＆新規作成） --- */
         .top-container {
             max-width: 1000px; margin: 0 auto; padding: 40px 20px; text-align: center;
             display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh;
         }
         .top-container h1 { font-size: 2.5rem; margin-bottom: 10px; color: #007bff; }
-        .top-container p { color: #666; margin-bottom: 40px; }
+        .top-container p { color: #666; margin-bottom: 30px; }
+        
+        /* モデル作成フォーム */
+        .create-model-form {
+            background: #ffffff; border: 1px solid #ccc; border-radius: 12px;
+            padding: 20px; width: 100%; max-width: 600px; margin-bottom: 40px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: left;
+        }
+        .create-model-form h2 { margin-top: 0; font-size: 1.2rem; color: #333; margin-bottom: 15px; }
+        .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+        .form-group label { font-size: 13px; font-weight: bold; color: #555; }
+        .form-group input, .form-group textarea { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        .form-group textarea { resize: vertical; height: 60px; }
         
         .grid-container {
             display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -106,7 +118,25 @@
     <div id="top-view" class="view-section view-active">
         <div class="top-container">
             <h1>AI Chat Station</h1>
-            <p>対話するAIモデルを選択してください</p>
+            <p>対話するAIモデルを選択するか、新しいカスタムモデルを作成してください</p>
+            
+            <div class="create-model-form">
+                <h2>＋ 新しいカスタムモデルを追加</h2>
+                <div class="form-group">
+                    <label for="new-model-id">モデルID / API識別子 (例: meta/llama-3-70b)</label>
+                    <input type="text" id="new-model-id" placeholder="provider/model-name">
+                </div>
+                <div class="form-group">
+                    <label for="new-model-name">表示名 (例: Llama3 70B カスタム)</label>
+                    <input type="text" id="new-model-name" placeholder="自由な名前を入力">
+                </div>
+                <div class="form-group">
+                    <label for="new-model-desc">説明文</label>
+                    <textarea id="new-model-desc" placeholder="このモデルの特徴や用途を入力"></textarea>
+                </div>
+                <button class="btn-primary" onclick="createNewModel()">モデルを追加する</button>
+            </div>
+
             <div id="model-grid" class="grid-container">
                 </div>
         </div>
@@ -167,39 +197,85 @@
         let persona = "";
         let memories = [];
         let strategies = [];
+        
+        // メモリ上にロードされたモデル一覧のキャッシュ（新規作成対応用）
+        let loadedModelsList = [];
 
         const DEFAULT_SYSTEM_PROMPT = { role: "system", content: "あなたは優秀なAIアシスタントです。回答はMarkdown記法を用いて見やすく構造化してください。" };
 
-        // 起動時にmodels.jsonを自動ロードし、フォルダ階層のパスを構築
+        // 起動時にmodels.jsonをロード
         async function loadModels() {
             try {
                 const response = await fetch('models.json');
-                const models = await response.json();
-                const grid = document.getElementById('model-grid');
-                grid.innerHTML = "";
-
-                models.forEach(model => {
-                    // パスエラーを防ぐためスラッシュをハイフンに置換 (例: "openai/gpt-oss-120b" -> "openai-gpt-oss-120b")
-                    const safeBaseName = model.id.replace(/\//g, '-');
-                    
-                    // 各フォルダ内のファイルパスを設定
-                    const imageUrl = `images/${safeBaseName}.png`;
-                    const modelJsonUrl = `models/${safeBaseName}.json`;
-
-                    const card = document.createElement('div');
-                    card.className = 'model-card';
-                    card.onclick = () => selectModel(model.id, model.name, imageUrl, modelJsonUrl);
-
-                    card.innerHTML = `
-                        <img class="model-avatar" src="${imageUrl}" onerror="this.src='https://via.placeholder.com/100?text=AI'" alt="${model.name}">
-                        <h3>${model.name}</h3>
-                        <p>${model.description}</p>
-                    `;
-                    grid.appendChild(card);
-                });
+                if (response.ok) {
+                    loadedModelsList = await response.json();
+                }
             } catch (error) {
-                document.getElementById('model-grid').innerHTML = "<p>models.json の読み込みに失敗しました。構成を確認してください。</p>";
+                console.log("models.json の自動取得に失敗したか、ファイルが存在しません。手動作成をお試しください。");
             }
+            renderModelGrid();
+        }
+
+        // 画面にモデルカード一覧を出力する処理
+        function renderModelGrid() {
+            const grid = document.getElementById('model-grid');
+            grid.innerHTML = "";
+
+            if (loadedModelsList.length === 0) {
+                grid.innerHTML = "<p style='grid-column: 1/-1; color: #888;'>有効な既定モデルがありません。上のフォームから新しいモデルを追加してください。</p>";
+                return;
+            }
+
+            loadedModelsList.forEach(model => {
+                const safeBaseName = model.id.replace(/\//g, '-');
+                const imageUrl = `${safeBaseName}.png`;
+                const modelJsonUrl = `${safeBaseName}.json`;
+
+                const card = document.createElement('div');
+                card.className = 'model-card';
+                card.onclick = () => selectModel(model.id, model.name, imageUrl, modelJsonUrl);
+
+                card.innerHTML = `
+                    <img class="model-avatar" src="${imageUrl}" onerror="this.src='https://via.placeholder.com/100?text=${encodeURIComponent(model.name)}'" alt="${model.name}">
+                    <h3>${model.name}</h3>
+                    <p>${model.description || '説明なし'}</p>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // 新しいモデルを動的に作成・追加するUIロジック
+        function createNewModel() {
+            const idField = document.getElementById('new-model-id');
+            const nameField = document.getElementById('new-model-name');
+            const descField = document.getElementById('new-model-desc');
+
+            const id = idField.value.trim();
+            const name = nameField.value.trim();
+            const description = descField.value.trim();
+
+            if (!id || !name) {
+                alert("モデルIDと表示名は必須入力項目です。");
+                return;
+            }
+
+            // 重複チェック
+            if (loadedModelsList.some(m => m.id === id)) {
+                alert("そのモデルIDは既にリストに存在します。");
+                return;
+            }
+
+            // メモリ上の配列に追加
+            loadedModelsList.unshift({ id, name, description });
+
+            // フォームのリセット
+            idField.value = "";
+            nameField.value = "";
+            descField.value = "";
+
+            // 再描画
+            renderModelGrid();
+            alert(`新モデル「${name}」を追加しました！カードをクリックして開始できます。`);
         }
 
         // モデル選択時のアクションと個別JSONファイルへの自動フック
@@ -208,18 +284,17 @@
             document.getElementById('current-model-title').textContent = `${modelName} (${modelId})`;
             document.getElementById('current-avatar').src = imageUrl;
 
-            // 個別の「models/モデル名.json」があれば自動でフックを試みる（設定拡張用）
+            // 同階層の「モデル名.json」があれば自動で読み込みを試みる
             try {
                 const res = await fetch(modelJsonUrl);
                 if (res.ok) {
                     const modelConfig = await res.json();
-                    console.log("個別モデルのJSON構成情報を読み込みました:", modelConfig);
+                    console.log("個別モデルのJSON情報を読み込みました:", modelConfig);
                 }
             } catch (e) {
-                console.log("個別モデルJSONへのフックはスキップされました。");
+                console.log("個別モデルJSONへのフックはスキップされました（未配置など）。");
             }
 
-            // チャットデータの初期化
             initChat();
 
             // 画面切り替え
@@ -284,7 +359,7 @@
                     
                     extractAndProcessData(aiResponse);
 
-                    // 画面表示・履歴保存の前に3つ全てのタグ構造（中身含む）を完全に消去
+                    // タグ構造のクリーンアップ消去
                     let cleanedResponse = aiResponse
                         .replace(/<persona>[\s\S]*?<\/persona>/gi, '')
                         .replace(/<memory>[\s\S]*?<\/memory>/gi, '')
@@ -308,7 +383,6 @@
             }
         }
 
-        // 不適切ワード（特になし等）のブロックを施したパース処理
         function extractAndProcessData(text) {
             const ignorePattern = /^(特になし|なし|変更なし|なし。|特になし。|none|null|undefined|\s*)$/i;
 
@@ -358,7 +432,6 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // すべての記憶と選択モデル情報を同じ形式で一括保存
         function downloadData() {
             const exportData = { 
                 modelId: selectedModelId,
@@ -376,7 +449,6 @@
             downloadAnchorNode.remove();
         }
 
-        // 一括復元
         function uploadData(event) {
             const file = event.target.files[0];
             if (!file) return;
