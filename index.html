@@ -5,21 +5,109 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Groq AI Chat</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f9; }
-        #chat-box { height: 400px; background: white; border: 1px solid #ccc; border-radius: 8px; padding: 15px; overflow-y: auto; margin-bottom: 10px; display: flex; flex-direction: column; gap: 10px; }
-        .message { padding: 10px 14px; border-radius: 15px; max-width: 80%; line-height: 1.4; word-wrap: break-word; }
-        .user-message { background-color: #007bff; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
-        .ai-message { background-color: #e9ecef; color: black; align-self: flex-start; border-bottom-left-radius: 2px; }
-        .input-area { display: flex; gap: 10px; }
-        #user-input { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
-        button { padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; transition: background-color 0.2s; }
+        /* 画面全体に広げるためのリセットとFlexbox設定 */
+        html, body {
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        /* ヘッダー部分（タイトルとボタン） */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: #ffffff;
+            border-bottom: 1px solid #ccc;
+        }
+        .header h2 { margin: 0; font-size: 1.2rem; }
+        .header-buttons { display: flex; gap: 10px; }
+        .header-buttons button {
+            padding: 6px 12px;
+            background-color: #6c757d;
+            font-size: 14px;
+        }
+        .header-buttons button:hover { background-color: #5a6268; }
+
+        /* チャットエリア（残りの画面幅を全て使う） */
+        #chat-box {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background-color: #ffffff;
+        }
+
+        /* 吹き出しのデザイン */
+        .message {
+            padding: 12px 16px;
+            border-radius: 15px;
+            max-width: 70%; /* 画面が広いので最大幅を少し絞る */
+            line-height: 1.5;
+            word-wrap: break-word;
+            white-space: pre-wrap; /* 改行を反映 */
+        }
+        .user-message {
+            background-color: #007bff;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+        .ai-message {
+            background-color: #e9ecef;
+            color: black;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+
+        /* 入力エリア */
+        .input-area {
+            display: flex;
+            gap: 10px;
+            padding: 15px 20px;
+            background-color: #f4f4f9;
+            border-top: 1px solid #ccc;
+        }
+        #user-input {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            padding: 12px 24px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
         button:hover { background-color: #218838; }
         button:disabled { background-color: #a5d6a7; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
-    <h2>Groq Chat (Model: GPTOSS120B)</h2>
+    <div class="header">
+        <h2>Groq Chat (Model: GPTOSS120B)</h2>
+        <div class="header-buttons">
+            <button onclick="downloadHistory()">履歴をダウンロード</button>
+            <input type="file" id="file-upload" accept=".json" style="display: none;" onchange="uploadHistory(event)">
+            <button onclick="document.getElementById('file-upload').click()">履歴をアップロード</button>
+        </div>
+    </div>
+
     <div id="chat-box"></div>
     
     <div class="input-area">
@@ -31,11 +119,11 @@
         // 【重要】ここにデプロイしたCloudflare WorkerのURLを入力してください
         const WORKER_URL = "https://curly-bird-8641.18-kota-shobun.workers.dev/";
         
-        // 会話の文脈を保持するための配列
         let conversationHistory = [
             { role: "system", content: "あなたは優秀なAIアシスタントです。日本語で簡潔に答えてください。" }
         ];
 
+        // --- メッセージ送信処理 ---
         async function sendMessage() {
             const inputField = document.getElementById("user-input");
             const sendBtn = document.getElementById("send-btn");
@@ -43,13 +131,11 @@
             
             if (!message) return;
 
-            // ユーザーのメッセージを画面に表示
             appendMessage("user", message);
             inputField.value = "";
             sendBtn.disabled = true;
             sendBtn.textContent = "送信中...";
             
-            // 履歴に追加
             conversationHistory.push({ role: "user", content: message });
 
             try {
@@ -63,14 +149,12 @@
                 
                 if (data.error) {
                     appendMessage("ai", `エラーが発生しました: ${data.error} \n詳細: ${data.details || ""}`);
-                    conversationHistory.pop(); // エラー時は履歴からユーザー入力を消す
+                    conversationHistory.pop();
                 } else {
                     const aiResponse = data.choices[0].message.content;
                     appendMessage("ai", aiResponse);
-                    // AIの返答を履歴に追加
                     conversationHistory.push({ role: "assistant", content: aiResponse });
                 }
-
             } catch (error) {
                 appendMessage("ai", "通信エラーが発生しました。WorkerのURLが正しいか確認してください。");
                 conversationHistory.pop();
@@ -81,6 +165,7 @@
             }
         }
 
+        // --- 画面へのメッセージ描画 ---
         function appendMessage(role, text) {
             const chatBox = document.getElementById("chat-box");
             const messageDiv = document.createElement("div");
@@ -88,6 +173,57 @@
             messageDiv.textContent = text;
             chatBox.appendChild(messageDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // --- 履歴をJSON形式でダウンロード ---
+        function downloadHistory() {
+            if (conversationHistory.length <= 1) {
+                alert("ダウンロードする履歴がありません。");
+                return;
+            }
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(conversationHistory));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "chat_history.json");
+            document.body.appendChild(downloadAnchorNode); // Firefox対策
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        // --- JSONファイルから履歴をアップロード ---
+        function uploadHistory(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const loadedData = JSON.parse(e.target.result);
+                    if (Array.isArray(loadedData)) {
+                        conversationHistory = loadedData;
+                        renderHistoryFromData();
+                    } else {
+                        alert("無効な履歴データです。");
+                    }
+                } catch (error) {
+                    alert("ファイルの読み込みに失敗しました。JSONファイルを選択してください。");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ""; // 同じファイルを再度選べるようにリセット
+        }
+
+        // --- アップロードされた履歴データをもとに画面を再描画 ---
+        function renderHistoryFromData() {
+            const chatBox = document.getElementById("chat-box");
+            chatBox.innerHTML = ""; // 現在の表示をクリア
+            
+            conversationHistory.forEach(msg => {
+                if (msg.role !== "system") {
+                    // roleが 'user' なら user、それ以外(assistant)は ai として描画
+                    appendMessage(msg.role === "user" ? "user" : "ai", msg.content);
+                }
+            });
         }
 
         function handleKeyPress(event) {
