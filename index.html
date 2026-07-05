@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Chat Station with Triple Context</title>
+    <title>AI Chat Station with GAS & Spreadsheet</title>
     
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
@@ -121,7 +121,7 @@
             <p>対話するAIモデルを選択するか、新しいカスタムモデルを作成してください</p>
             
             <div class="create-model-form">
-                <h2>＋ 新しいカスタムモデルを追加</h2>
+                <h2>＋ 新しいカスタムモデルを追加 (画面上の一時追加)</h2>
                 <div class="form-group">
                     <label for="new-model-id">モデルID / API識別子 (例: meta/llama-3-70b)</label>
                     <input type="text" id="new-model-id" placeholder="provider/model-name">
@@ -189,47 +189,56 @@
     </div>
 
     <script>
-        // 【重要】ご自身のCloudflare WorkerのURLをここに入力してください
+        // ================================================================
+        // 【重要】設定項目
+        // ================================================================
         const WORKER_URL = "https://curly-bird-8641.18-kota-shobun.workers.dev/";
-        
+        const GAS_API_URL = "https://script.google.com/macros/s/AKfycbz0uCNsOOpu3Fo117e-dWbxFw2SQAu0wFQ0zlJSAltAYMnqqAbuNUlA4hoNTT2LU8TMyA/exec";
+        // ================================================================
+
         let selectedModelId = ""; 
         let conversationHistory = [];
         let persona = "";
         let memories = [];
         let strategies = [];
         
-        // メモリ上にロードされたモデル一覧のキャッシュ（新規作成対応用）
+        // GASから読み込んだ、または手動追加したモデル一覧を保持する配列
         let loadedModelsList = [];
 
         const DEFAULT_SYSTEM_PROMPT = { role: "system", content: "あなたは優秀なAIアシスタントです。回答はMarkdown記法を用いて見やすく構造化してください。" };
 
-        // 起動時にmodels.jsonをロード
+        // 起動時に【GAS】からモデル一覧を自動ロード
         async function loadModels() {
             try {
-                const response = await fetch('models.json');
+                const response = await fetch(GAS_API_URL);
                 if (response.ok) {
                     loadedModelsList = await response.json();
+                } else {
+                    console.error("GAS APIからの応答が不正です。");
                 }
             } catch (error) {
-                console.log("models.json の自動取得に失敗したか、ファイルが存在しません。手動作成をお試しください。");
+                console.error("GASからのモデルデータ取得に失敗しました。URLやデプロイ設定を確認してください。");
             }
+            // 取得成否に関わらず、描画処理を実行（手動追加機能を生かすため）
             renderModelGrid();
         }
 
-        // 画面にモデルカード一覧を出力する処理
+        // 画面にモデルカード一覧を出力する共通処理
         function renderModelGrid() {
             const grid = document.getElementById('model-grid');
             grid.innerHTML = "";
 
             if (loadedModelsList.length === 0) {
-                grid.innerHTML = "<p style='grid-column: 1/-1; color: #888;'>有効な既定モデルがありません。上のフォームから新しいモデルを追加してください。</p>";
+                grid.innerHTML = "<p style='grid-column: 1/-1; color: #cc0000; font-weight: bold;'>GASからモデルを読み込めませんでした。URLを設定するか、上のフォームから一時的なカスタムモデルを追加してください。</p>";
                 return;
             }
 
             loadedModelsList.forEach(model => {
                 const safeBaseName = model.id.replace(/\//g, '-');
-                const imageUrl = `${safeBaseName}.png`;
-                const modelJsonUrl = `${safeBaseName}.json`;
+                
+                // スプシ側に直URLがあればそれを使い、空欄なら同階層の「ファイル名.png / .json」を動的参照
+                const imageUrl = model.imageUrl ? model.imageUrl : `${safeBaseName}.png`;
+                const modelJsonUrl = model.configJsonUrl ? model.configJsonUrl : `${safeBaseName}.json`;
 
                 const card = document.createElement('div');
                 card.className = 'model-card';
@@ -244,7 +253,7 @@
             });
         }
 
-        // 新しいモデルを動的に作成・追加するUIロジック
+        // 画面上で新しいモデルを一時的に作成・追加するUIロジック
         function createNewModel() {
             const idField = document.getElementById('new-model-id');
             const nameField = document.getElementById('new-model-name');
@@ -259,21 +268,18 @@
                 return;
             }
 
-            // 重複チェック
             if (loadedModelsList.some(m => m.id === id)) {
                 alert("そのモデルIDは既にリストに存在します。");
                 return;
             }
 
-            // メモリ上の配列に追加
-            loadedModelsList.unshift({ id, name, description });
+            // 配列の先頭に追加 (スプシから取得したデータにマージされる)
+            loadedModelsList.unshift({ id, name, description, imageUrl: "", configJsonUrl: "" });
 
-            // フォームのリセット
             idField.value = "";
             nameField.value = "";
             descField.value = "";
 
-            // 再描画
             renderModelGrid();
             alert(`新モデル「${name}」を追加しました！カードをクリックして開始できます。`);
         }
@@ -284,7 +290,7 @@
             document.getElementById('current-model-title').textContent = `${modelName} (${modelId})`;
             document.getElementById('current-avatar').src = imageUrl;
 
-            // 同階層の「モデル名.json」があれば自動で読み込みを試みる
+            // 個別設定用の「モデル名.json」へのフック処理
             try {
                 const res = await fetch(modelJsonUrl);
                 if (res.ok) {
