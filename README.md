@@ -1,2 +1,2 @@
-# Liqwen-1.2B
+# ASUKA.LM
 Just an experiment.
